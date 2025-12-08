@@ -132,6 +132,24 @@ const App = () => {
   const [beijingTime, setBeijingTime] = useState(new Date());
   // 初始化天气状态为中文
   const [weather, setWeather] = useState({ temp: '--', condition: '加载中...', icon: <Sun size={20}/> });
+  
+  // [新增] 点击计数状态
+  const [clickCount, setClickCount] = useState(0);
+
+  // [新增] 处理头像点击逻辑
+  const handleAvatarClick = () => {
+    // 1. 增加金币
+    setMoney(money + 10);
+    
+    // 2. 增加点击计数
+    const newCount = clickCount + 1;
+    setClickCount(newCount);
+
+    // 3. 检查是否达到20次
+    if (newCount === 20) {
+      window.location.href = "http://image.aibochinese.com/i/2025/12/08/ra2nbt.png";
+    }
+  };
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -147,6 +165,7 @@ const App = () => {
         const data = await res.json();
         if (data.current_weather) {
           const { temperature, weathercode } = data.current_weather;
+          // 天气状态全面中文化
           let condition = '晴朗';
           let icon = <Sun size={20} className="text-yellow-500" />;
             
@@ -204,11 +223,13 @@ const App = () => {
     { name: "摄影 (Photography)", level: 6, icon: <Camera size={24} />, color: "bg-purple-500" },
   ];
 
+  // 任务数据中文化
   const projects = [
     { id: 1, title: "大学进度", type: "学习", desc: "目前进度1/4 大一下在读", reward: "一份工作（？）", tags: [] },
     { id: 2, title: "全中国旅行点亮", type: "探索", desc: "目前已点亮 28/34。未点亮：安徽、宁夏、青海、河北、新疆、西藏。", reward: "阅历++", tags: ["旅行", "中国"] }
   ];
 
+  // 日常数据中文化
   const dailyMoments = [
     {
       id: 1,
@@ -346,7 +367,8 @@ const App = () => {
               {activeTab === 'profile' && (
                 <div className="flex flex-col md:flex-row gap-8 animate-in fade-in duration-300 h-full">
                   <div className="md:w-1/3 flex flex-col items-center justify-center">
-                    <div className="w-48 h-48 bg-[#D6A672] border-4 border-[#5E2C0C] rounded-lg mb-4 flex items-center justify-center relative overflow-hidden shadow-inner group cursor-pointer" onClick={() => setMoney(money + 10)}>
+                    {/* [修改] 将原来的内联 onClick 替换为新的 handleAvatarClick 函数 */}
+                    <div className="w-48 h-48 bg-[#D6A672] border-4 border-[#5E2C0C] rounded-lg mb-4 flex items-center justify-center relative overflow-hidden shadow-inner group cursor-pointer" onClick={handleAvatarClick}>
                       <div className="w-full h-full relative">
                           <div className="absolute inset-0">
                               <MikuAvatar />
