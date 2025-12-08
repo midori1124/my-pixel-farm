@@ -414,7 +414,7 @@ const App = () => {
                         <div className="flex justify-center gap-4 flex-wrap">
                             <a href={personalInfo.socials.qq} target="_blank" rel="noopener noreferrer" className="text-[#5E2C0C] hover:text-[#8E4918] transition-colors hover:scale-110 transform">
                                 <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center border-2 border-[#5E2C0C]">
-                                    <Star size={24} className="text-yellow-500" />
+                                    <Star size={35} className="text-yellow-500" />
                                 </div>
                             </a>
                             <a href={personalInfo.socials.bilibili} target="_blank" rel="noopener noreferrer" className="text-[#5E2C0C] hover:text-[#8E4918] transition-colors hover:scale-110 transform">
