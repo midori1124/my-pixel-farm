@@ -138,6 +138,7 @@ const App = () => {
     { name: "个人菜谱 (Cooking)", level: 4, icon: <Soup size={24} />, color: "bg-orange-500" },
     { name: "游戏能力 (Gaming)", level: 7, icon: <Swords size={24} />, color: "bg-red-500" },
     { name: "行动能力 (Action)", level: 5, icon: <Search size={24} />, color: "bg-yellow-500" },
+    { name: "摄影 (Photography)", level: 6, icon: <Camera size={24} />, color: "bg-purple-500" },
   ];
 
   // 任务数据中文化
@@ -355,8 +356,8 @@ const App = () => {
                               <Code size={32} className="text-[#5E2C0C]" />
                           </div>
                           <div>
-                              <div className="font-bold text-[#5E2C0C]">状态: 低效上学</div>
-                              <div className="text-lg text-[#8E4918]">咖啡因 Buff 生效中 (剩余 12h)</div>
+                              <div className="font-bold text-[#5E2C0C]">状态: 高效工作中</div>
+                              <div className="text-lg text-[#8E4918]">咖啡因 Buff 生效中 (剩余 2h)</div>
                           </div>
                         </div>
                       </div>
@@ -444,7 +445,7 @@ const App = () => {
               {activeTab === 'daily' && (
                 <div className="animate-in slide-in-from-right duration-300 h-full flex flex-col">
                    <h3 className="text-4xl font-bold mb-8 text-center text-[#5E2C0C] flex items-center justify-center gap-3">
-                      <Coffee size={32} /> 生活记录 <Coffee size={32} />
+                      <Coffee size={32} /> 农场日记 <Coffee size={32} />
                    </h3>
                    <div className="flex flex-col gap-8 flex-grow overflow-auto">
                       {/* 仅居中显示日记列表 */}
