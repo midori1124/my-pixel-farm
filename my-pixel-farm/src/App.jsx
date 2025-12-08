@@ -35,24 +35,51 @@ const PixelFontLink = () => (
 );
 
 // ==========================================
-// [新增] 雪花图片配置
+// 👇👇👇 自定义配置区域 👇👇👇
+
+// 1. 雪花特效图片
 const SNOW_IMAGE_URL = "http://image.aibochinese.com/i/2025/12/08/padnh6.jpg"; 
+
+// 2. 浏览器标签页上的小图标 (Favicon) - [已修改] 现在和雪花是同一张图
+const FAVICON_URL = "http://image.aibochinese.com/i/2025/12/08/padnh6.jpg"; 
+
+// 3. 浏览器标签页上的标题文字
+const WEBSITE_TITLE = "我的像素农场 | Pixel Farm";
+
 // ==========================================
 
-// --- [新增] 图片飘雪特效组件 ---
+// --- [核心修改] 动态修改浏览器标签页图标和标题 ---
+const HeadSettings = () => {
+  useEffect(() => {
+    // 1. 修改网页标题
+    document.title = WEBSITE_TITLE;
+
+    // 2. 修改网页图标 (Favicon)
+    let link = document.querySelector("link[rel*='icon']");
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'shortcut icon';
+      document.getElementsByTagName('head')[0].appendChild(link);
+    }
+    link.href = FAVICON_URL;
+    link.type = 'image/png'; // 确保类型正确
+  }, []);
+  return null;
+};
+
+// --- 图片飘雪特效组件 ---
 const SnowEffect = () => {
   const [flakes, setFlakes] = useState([]);
 
   useEffect(() => {
-    // 生成 30 片随机雪花
     const newFlakes = Array.from({ length: 30 }).map((_, i) => ({
       id: i,
-      left: Math.random() * 100,      // 起始水平位置 0-100%
-      duration: Math.random() * 5 + 8, // 下落时长 8-13秒
-      delay: Math.random() * 5,       // 初始延迟
-      size: Math.random() * 15 + 15,  // 图片大小
-      opacity: Math.random() * 0.4 + 0.6, // 透明度
-      sway: Math.random() * 40 - 20,  // 左右摇摆幅度
+      left: Math.random() * 100,      
+      duration: Math.random() * 5 + 8, 
+      delay: Math.random() * 5,       
+      size: Math.random() * 15 + 15,  
+      opacity: Math.random() * 0.4 + 0.6, 
+      sway: Math.random() * 40 - 20,  
     }));
     setFlakes(newFlakes);
   }, []);
@@ -62,19 +89,11 @@ const SnowEffect = () => {
       <style>
         {`
           @keyframes snowfall-sway {
-            0% { 
-              transform: translate(0, -10vh) rotate(0deg); 
-              opacity: 0; 
-            }
+            0% { transform: translate(0, -10vh) rotate(0deg); opacity: 0; }
             10% { opacity: 1; }
-            50% {
-              transform: translate(20px, 50vh) rotate(180deg);
-            }
+            50% { transform: translate(20px, 50vh) rotate(180deg); }
             90% { opacity: 1; }
-            100% { 
-              transform: translate(-20px, 105vh) rotate(360deg); 
-              opacity: 0; 
-            }
+            100% { transform: translate(-20px, 105vh) rotate(360deg); opacity: 0; }
           }
         `}
       </style>
@@ -98,7 +117,7 @@ const SnowEffect = () => {
   );
 };
 
-// --- Miku Avatar SVG (像素风头像) ---
+// --- Miku Avatar SVG ---
 const MikuAvatar = () => (
   <svg viewBox="0 0 24 24" className="w-full h-full bg-[#b6e3f4]" shapeRendering="crispEdges">
     <rect x="2" y="4" width="4" height="12" fill="#39c5bb" />
@@ -130,7 +149,6 @@ const App = () => {
   const [money, setMoney] = useState(114514); 
   const [imgError, setImgError] = useState(false);
   const [beijingTime, setBeijingTime] = useState(new Date());
-  // 初始化天气状态为中文
   const [weather, setWeather] = useState({ temp: '--', condition: '加载中...', icon: <Sun size={20}/> });
 
   useEffect(() => {
@@ -147,7 +165,6 @@ const App = () => {
         const data = await res.json();
         if (data.current_weather) {
           const { temperature, weathercode } = data.current_weather;
-          // 天气状态全面中文化
           let condition = '晴朗';
           let icon = <Sun size={20} className="text-yellow-500" />;
             
@@ -175,7 +192,6 @@ const App = () => {
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
-  // 标签中文映射
   const tabLabels = {
     profile: '角色',
     skills: '技能',
@@ -205,13 +221,11 @@ const App = () => {
     { name: "摄影 (Photography)", level: 6, icon: <Camera size={24} />, color: "bg-purple-500" },
   ];
 
-  // 任务数据中文化
   const projects = [
     { id: 1, title: "大学进度", type: "学习", desc: "目前进度1/4 大一下在读", reward: "一份工作（？）", tags: [] },
     { id: 2, title: "全中国旅行点亮", type: "探索", desc: "目前已点亮 28/34。未点亮：安徽、宁夏、青海、河北、新疆、西藏。", reward: "阅历++", tags: ["旅行", "中国"] }
   ];
 
-  // 日常数据中文化
   const dailyMoments = [
     {
       id: 1,
@@ -239,7 +253,8 @@ const App = () => {
   return (
     <>
     <PixelFontLink />
-    {/* [新增] 启用飘雪特效 */}
+    <HeadSettings /> {/* 这里的组件负责修改浏览器标签页图标和标题 */}
+    {/* 启用飘雪特效 */}
     <SnowEffect />
     <div className="w-full min-h-screen font-['VT323'] bg-[#6CC478] text-[#4A2810] selection:bg-[#E67E22] selection:text-white flex flex-col overflow-x-hidden"
          style={{
@@ -256,6 +271,8 @@ const App = () => {
       <div className="fixed top-0 w-full z-50 bg-[#D97940] border-b-4 border-[#5E2C0C] shadow-lg text-white">
         <div className="container mx-auto px-4 h-16 flex justify-between items-center max-w-none">
           <div className="flex items-center gap-4">
+            
+            {/* 恢复为默认的金币图标 */}
             <div className="bg-[#5E2C0C] p-1 rounded border-2 border-[#CCA37A]">
               <div className="w-8 h-8 bg-yellow-400 rounded-full border-2 border-yellow-600 flex items-center justify-center text-[#5E2C0C] font-bold text-lg animate-pulse">
                 G
@@ -300,7 +317,6 @@ const App = () => {
                 {tab === 'skills' && <Sprout size={20}/>}
                 {tab === 'projects' && <Hammer size={20}/>}
                 {tab === 'daily' && <Coffee size={20}/>}
-                {/* 移动端菜单显示中文 */}
                 {tabLabels[tab]}
               </button>
             ))}
@@ -312,7 +328,7 @@ const App = () => {
       <div className="flex-grow flex items-center justify-center pt-24 pb-8 px-4 w-full">
         <div className="w-full max-w-6xl">
            
-          {/* 桌面端标签栏 - 使用 tabLabels 显示中文 */}
+          {/* 桌面端标签栏 */}
           <div className="hidden md:flex justify-center gap-4 mb-[-4px] relative z-10 px-8">
             {[
               { id: 'profile', icon: <User size={24} /> },
