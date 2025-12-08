@@ -450,8 +450,8 @@ const App = () => {
                               <Code size={32} className="text-[#5E2C0C]" />
                           </div>
                           <div>
-                              <div className="font-bold text-[#5E2C0C]">状态: 等待下课中</div>
-                              <div className="text-lg text-[#8E4918]">咖啡因 Buff 生效中 (剩余 2h)</div>
+                              <div className="font-bold text-[#5E2C0C]">状态: 想睡觉</div>
+                              <div className="text-lg text-[#8E4918]">咖啡因 Buff 生效中 (剩余 -2h)</div>
                           </div>
                         </div>
                       </div>
