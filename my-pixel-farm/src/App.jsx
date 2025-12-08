@@ -30,7 +30,6 @@ import {
 } from 'lucide-react';
 
 // --- 引入复古像素字体 ---
-// 如果你在 index.html 里已经加过 link 标签，这一段其实可以删掉，但留着也没坏处
 const PixelFontLink = () => (
   <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet" />
 );
@@ -67,7 +66,8 @@ const App = () => {
   const [money, setMoney] = useState(114514); 
   const [imgError, setImgError] = useState(false);
   const [beijingTime, setBeijingTime] = useState(new Date());
-  const [weather, setWeather] = useState({ temp: '--', condition: 'Loading...', icon: <Sun size={20}/> });
+  // 初始化天气状态为中文
+  const [weather, setWeather] = useState({ temp: '--', condition: '加载中...', icon: <Sun size={20}/> });
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -79,25 +79,25 @@ const App = () => {
   useEffect(() => {
     const fetchWeather = async () => {
       try {
-        // 使用 Open-Meteo API 获取北京天气
         const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=39.9042&longitude=116.4074&current_weather=true');
         const data = await res.json();
         if (data.current_weather) {
           const { temperature, weathercode } = data.current_weather;
-          let condition = 'Sunny';
+          // 天气状态全面中文化
+          let condition = '晴朗';
           let icon = <Sun size={20} className="text-yellow-500" />;
-           
-          if (weathercode > 0 && weathercode <= 3) { condition = 'Cloudy'; icon = <Cloud size={20} className="text-gray-400" />; }
-          else if (weathercode >= 45 && weathercode <= 48) { condition = 'Foggy'; icon = <Cloud size={20} className="text-gray-300" />; }
-          else if ((weathercode >= 51 && weathercode <= 67) || (weathercode >= 80 && weathercode <= 82)) { condition = 'Rainy'; icon = <CloudRain size={20} className="text-blue-400" />; }
-          else if (weathercode >= 71 && weathercode <= 77) { condition = 'Snowy'; icon = <CloudSnow size={20} className="text-blue-200" />; }
-          else if (weathercode >= 95) { condition = 'Stormy'; icon = <CloudLightning size={20} className="text-purple-500" />; }
-           
+            
+          if (weathercode > 0 && weathercode <= 3) { condition = '多云'; icon = <Cloud size={20} className="text-gray-400" />; }
+          else if (weathercode >= 45 && weathercode <= 48) { condition = '雾'; icon = <Cloud size={20} className="text-gray-300" />; }
+          else if ((weathercode >= 51 && weathercode <= 67) || (weathercode >= 80 && weathercode <= 82)) { condition = '雨'; icon = <CloudRain size={20} className="text-blue-400" />; }
+          else if (weathercode >= 71 && weathercode <= 77) { condition = '雪'; icon = <CloudSnow size={20} className="text-blue-200" />; }
+          else if (weathercode >= 95) { condition = '雷暴'; icon = <CloudLightning size={20} className="text-purple-500" />; }
+            
           setWeather({ temp: temperature, condition, icon });
         }
       } catch (error) {
         console.error("Failed to fetch weather", error);
-        setWeather({ temp: 'N/A', condition: 'Offline', icon: <X size={20} /> });
+        setWeather({ temp: 'N/A', condition: '离线', icon: <X size={20} /> });
       }
     };
     fetchWeather();
@@ -110,6 +110,14 @@ const App = () => {
   const currentFullTime = new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(beijingTime);
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
+
+  // 标签中文映射
+  const tabLabels = {
+    profile: '角色',
+    skills: '技能',
+    projects: '任务',
+    daily: '日常'
+  };
 
   const personalInfo = {
     name: "緑ミドリ", 
@@ -132,11 +140,13 @@ const App = () => {
     { name: "行动能力 (Action)", level: 5, icon: <Search size={24} />, color: "bg-yellow-500" },
   ];
 
+  // 任务数据中文化
   const projects = [
-    { id: 1, title: "大学进度", type: "Learning", desc: "目前进度1/4 大一下在读", reward: "一份工作（？）", tags: [] },
-    { id: 2, title: "全中国旅行点亮", type: "Exploration", desc: "目前已点亮 28/34。未点亮：安徽、宁夏、青海、河北、新疆、西藏。", reward: "阅历++", tags: ["Travel", "China"] }
+    { id: 1, title: "大学进度", type: "学习", desc: "目前进度1/4 大一下在读", reward: "一份工作（？）", tags: [] },
+    { id: 2, title: "全中国旅行点亮", type: "探索", desc: "目前已点亮 28/34。未点亮：安徽、宁夏、青海、河北、新疆、西藏。", reward: "阅历++", tags: ["旅行", "中国"] }
   ];
 
+  // 日常数据中文化
   const dailyMoments = [
     {
       id: 1,
@@ -145,14 +155,13 @@ const App = () => {
       content: "（图片只是我学校的早餐 无意义）", 
       image: "https://i.postimg.cc/d01D8Dz9/5494118cbd5d94f2e15c6250c1afa313.jpg",
       weather: weather.icon, 
-      mood: "Happy"
+      mood: "开心"
     }
   ];
 
-  // 增加 w-full 确保木板宽度自适应
   const woodContainerClass = "bg-[#E09F5B] border-4 border-[#5E2C0C] rounded-lg shadow-[4px_4px_0px_0px_rgba(45,20,5,0.4)] relative w-full";
   const woodInnerClass = "bg-[#FFFAE3] border-2 border-[#9C5828] rounded m-2 p-4 text-[#4A2810] h-full";
-   
+    
   const rpgBtnClass = (active) => `
     relative px-4 py-2 font-bold text-xl uppercase transition-all
     ${active 
@@ -176,7 +185,7 @@ const App = () => {
          }}
     >
        
-      {/* 顶部状态栏 - 固定在顶部 */}
+      {/* 顶部状态栏 */}
       <div className="fixed top-0 w-full z-50 bg-[#D97940] border-b-4 border-[#5E2C0C] shadow-lg text-white">
         <div className="container mx-auto px-4 h-16 flex justify-between items-center max-w-none">
           <div className="flex items-center gap-4">
@@ -224,25 +233,25 @@ const App = () => {
                 {tab === 'skills' && <Sprout size={20}/>}
                 {tab === 'projects' && <Hammer size={20}/>}
                 {tab === 'daily' && <Coffee size={20}/>}
-                {tab === 'daily' ? '日常' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                {/* 移动端菜单显示中文 */}
+                {tabLabels[tab]}
               </button>
             ))}
           </div>
         </div>
       )}
 
-      {/* 主内容区域 - 弹性布局实现垂直居中 */}
+      {/* 主内容区域 */}
       <div className="flex-grow flex items-center justify-center pt-24 pb-8 px-4 w-full">
-        {/* 关键：移除 max-w-6xl 限制，或者改大一点，这里改为 max-w-7xl 并且 w-full */}
         <div className="w-full max-w-6xl">
            
-          {/* 标签栏 - 仅桌面端显示 */}
+          {/* 桌面端标签栏 - 使用 tabLabels 显示中文 */}
           <div className="hidden md:flex justify-center gap-4 mb-[-4px] relative z-10 px-8">
             {[
-              { id: 'profile', label: '角色', icon: <User size={24} /> },
-              { id: 'skills', label: '技能', icon: <Sprout size={24} /> },
-              { id: 'projects', label: '任务', icon: <Hammer size={24} /> },
-              { id: 'daily', label: '日常', icon: <Coffee size={24} /> }
+              { id: 'profile', icon: <User size={24} /> },
+              { id: 'skills', icon: <Sprout size={24} /> },
+              { id: 'projects', icon: <Hammer size={24} /> },
+              { id: 'daily', icon: <Coffee size={24} /> }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -254,7 +263,7 @@ const App = () => {
                     : 'bg-[#A05E28] text-[#E0CEB5] hover:bg-[#C27E46] translate-y-2'}
                 `}
               >
-                {tab.icon} {tab.label}
+                {tab.icon} {tabLabels[tab.id]}
               </button>
             ))}
           </div>
@@ -269,7 +278,7 @@ const App = () => {
 
             <div className="p-4 md:p-8 flex-grow">
                
-              {/* --- PROFILE TAB --- */}
+              {/* --- 角色 TAB --- */}
               {activeTab === 'profile' && (
                 <div className="flex flex-col md:flex-row gap-8 animate-in fade-in duration-300 h-full">
                   <div className="md:w-1/3 flex flex-col items-center justify-center">
@@ -289,7 +298,7 @@ const App = () => {
                           )}
                       </div>
                       <div className="absolute top-2 right-2 text-xs bg-red-500 text-white px-2 rounded-full border border-[#5E2C0C] animate-bounce z-20">
-                          CLICK ME!
+                          点我!
                       </div>
                     </div>
                     <div className="bg-[#FFFAE3] border-2 border-[#9C5828] rounded p-2 w-full text-center shadow-md">
@@ -297,7 +306,7 @@ const App = () => {
                       <p className="text-xl text-[#8E4918]">{personalInfo.title}</p>
                     </div>
                     <div className="mt-4 flex gap-2 w-full justify-center mb-6">
-                        <span className="text-[#5E2C0C] text-xl">Social:</span>
+                        <span className="text-[#5E2C0C] text-xl">社交账号:</span>
                         <Heart className="fill-red-500 text-red-500 animate-pulse" />
                         <Heart className="fill-red-500 text-red-500" />
                         <Heart className="fill-red-500 text-red-500" />
@@ -306,7 +315,7 @@ const App = () => {
                     </div>
 
                     <div className="bg-[#E6C69D] p-4 rounded border-2 border-[#9C5828] text-center w-full">
-                        <h4 className="text-xl font-bold text-[#5E2C0C] mb-3">Find Me Here</h4>
+                        <h4 className="text-xl font-bold text-[#5E2C0C] mb-3">找到我</h4>
                         <div className="flex justify-center gap-4 flex-wrap">
                             <a href={personalInfo.socials.qq} target="_blank" rel="noopener noreferrer" className="text-[#5E2C0C] hover:text-[#8E4918] transition-colors hover:scale-110 transform">
                                 <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center border-2 border-[#5E2C0C]">
@@ -330,10 +339,10 @@ const App = () => {
                   <div className="md:w-2/3">
                     <div className={woodInnerClass + " h-full relative flex flex-col justify-center"}>
                       <div className="absolute top-0 right-0 w-8 h-8 bg-[#E09F5B] transform rotate-45 translate-x-4 -translate-y-4 border-l-2 border-b-2 border-[#9C5828]"></div>
-                      <h3 className="text-4xl font-bold mb-6 border-b-2 border-[#9C5828] pb-2 text-[#5E2C0C]">Adventure Log</h3>
+                      <h3 className="text-4xl font-bold mb-6 border-b-2 border-[#9C5828] pb-2 text-[#5E2C0C]">冒险日志</h3>
                       <div className="space-y-6 text-2xl leading-relaxed">
                         <p>
-                          <span className="font-bold text-[#8E4918]">Current Farm:</span> {personalInfo.farmName}
+                          <span className="font-bold text-[#8E4918]">当前农场:</span> {personalInfo.farmName}
                         </p>
                         <p>
                           {personalInfo.intro}
@@ -356,11 +365,11 @@ const App = () => {
                 </div>
               )}
 
-              {/* --- SKILLS TAB --- */}
+              {/* --- 技能 TAB --- */}
               {activeTab === 'skills' && (
                 <div className="animate-in slide-in-from-right duration-300 flex flex-col justify-center h-full">
                    <h3 className="text-4xl font-bold mb-12 text-center text-[#5E2C0C] drop-shadow-sm flex items-center justify-center gap-3">
-                      <Sprout size={32} /> Skill Levels <Sprout size={32} />
+                      <Sprout size={32} /> 技能等级 <Sprout size={32} />
                    </h3>
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       {skills.map((skill, idx) => (
@@ -388,13 +397,13 @@ const App = () => {
                 </div>
               )}
 
-              {/* --- PROJECTS TAB --- */}
+              {/* --- 任务 TAB --- */}
               {activeTab === 'projects' && (
                 <div className="animate-in slide-in-from-right duration-300 flex flex-col h-full">
                   <div className="flex justify-between items-center mb-8">
-                      <h3 className="text-4xl font-bold text-[#5E2C0C]">Help Wanted</h3>
+                      <h3 className="text-4xl font-bold text-[#5E2C0C]">悬赏任务</h3>
                       <div className="text-xl bg-[#FFFAE3] px-3 py-1 border-2 border-[#9C5828] rounded">
-                          New quests available!
+                          有新任务！
                       </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 flex-grow">
@@ -420,7 +429,7 @@ const App = () => {
                                   </div>
                                   <div className="mt-auto pt-4 border-t-2 border-[#9C5828] flex justify-between items-center">
                                       <div className="flex flex-col">
-                                          <span className="text-sm font-bold text-[#8E4918] uppercase">Reward</span>
+                                          <span className="text-sm font-bold text-[#8E4918] uppercase">奖励</span>
                                           <span className="text-xl font-bold text-[#5E2C0C]">{project.reward}</span>
                                       </div>
                                   </div>
@@ -431,33 +440,33 @@ const App = () => {
                 </div>
               )}
 
-              {/* --- DAILY LIFE (New Page) --- */}
+              {/* --- 日常 TAB --- */}
               {activeTab === 'daily' && (
                 <div className="animate-in slide-in-from-right duration-300 h-full flex flex-col">
                    <h3 className="text-4xl font-bold mb-8 text-center text-[#5E2C0C] flex items-center justify-center gap-3">
-                      <Coffee size={32} /> Farm Diary <Coffee size={32} />
+                      <Coffee size={32} /> 农场日记 <Coffee size={32} />
                    </h3>
                    <div className="flex flex-col gap-8 flex-grow overflow-auto">
                       {/* 仅居中显示日记列表 */}
                       <div className="w-full max-w-4xl mx-auto space-y-8">
                          {dailyMoments.map(moment => (
                              <div key={moment.id} className="bg-[#FFFAE3] border-2 border-[#9C5828] p-6 rounded-lg shadow-md relative">
-                                  <div className="absolute -left-2 top-6 w-4 h-8 bg-[#8E4918] rounded-r"></div>
-                                  <div className="flex justify-between items-start border-b border-[#9C5828] pb-3 mb-4">
-                                      <div className="flex items-center gap-3">
-                                          <span className="text-2xl font-bold text-[#5E2C0C]">{moment.date}</span>
-                                          <div className="scale-125 origin-left">{moment.weather}</div>
-                                      </div>
-                                      <span className="text-[#8E4918] bg-[#E6C69D] px-3 py-1 rounded text-lg">Mood: {moment.mood}</span>
+                                 <div className="absolute -left-2 top-6 w-4 h-8 bg-[#8E4918] rounded-r"></div>
+                                 <div className="flex justify-between items-start border-b border-[#9C5828] pb-3 mb-4">
+                                     <div className="flex items-center gap-3">
+                                         <span className="text-2xl font-bold text-[#5E2C0C]">{moment.date}</span>
+                                         <div className="scale-125 origin-left">{moment.weather}</div>
+                                     </div>
+                                     <span className="text-[#8E4918] bg-[#E6C69D] px-3 py-1 rounded text-lg">心情: {moment.mood}</span>
+                                 </div>
+                                 <h4 className="text-3xl font-bold text-[#5E2C0C] mb-4">{moment.title}</h4>
+                                 
+                                 {moment.image && (
+                                  <div className="mb-6 border-4 border-[#9C5828] rounded overflow-hidden shadow-sm">
+                                    <img src={moment.image} alt={moment.title} className="w-full h-auto object-cover max-h-[500px]" />
                                   </div>
-                                  <h4 className="text-3xl font-bold text-[#5E2C0C] mb-4">{moment.title}</h4>
-                                  
-                                  {moment.image && (
-                                   <div className="mb-6 border-4 border-[#9C5828] rounded overflow-hidden shadow-sm">
-                                     <img src={moment.image} alt={moment.title} className="w-full h-auto object-cover max-h-[500px]" />
-                                   </div>
-                                  )}
-                                  {moment.content && <p className="text-2xl text-[#4A2810] leading-relaxed">{moment.content}</p>}
+                                 )}
+                                 {moment.content && <p className="text-2xl text-[#4A2810] leading-relaxed">{moment.content}</p>}
                              </div>
                          ))}
                       </div>
