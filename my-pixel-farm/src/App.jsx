@@ -34,6 +34,70 @@ const PixelFontLink = () => (
   <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet" />
 );
 
+// ==========================================
+// [新增] 雪花图片配置
+const SNOW_IMAGE_URL = "http://image.aibochinese.com/i/2025/12/08/padnh6.jpg"; 
+// ==========================================
+
+// --- [新增] 图片飘雪特效组件 ---
+const SnowEffect = () => {
+  const [flakes, setFlakes] = useState([]);
+
+  useEffect(() => {
+    // 生成 30 片随机雪花
+    const newFlakes = Array.from({ length: 30 }).map((_, i) => ({
+      id: i,
+      left: Math.random() * 100,      // 起始水平位置 0-100%
+      duration: Math.random() * 5 + 8, // 下落时长 8-13秒
+      delay: Math.random() * 5,       // 初始延迟
+      size: Math.random() * 15 + 15,  // 图片大小
+      opacity: Math.random() * 0.4 + 0.6, // 透明度
+      sway: Math.random() * 40 - 20,  // 左右摇摆幅度
+    }));
+    setFlakes(newFlakes);
+  }, []);
+
+  return (
+    <div className="fixed inset-0 pointer-events-none z-[100] overflow-hidden" aria-hidden="true">
+      <style>
+        {`
+          @keyframes snowfall-sway {
+            0% { 
+              transform: translate(0, -10vh) rotate(0deg); 
+              opacity: 0; 
+            }
+            10% { opacity: 1; }
+            50% {
+              transform: translate(20px, 50vh) rotate(180deg);
+            }
+            90% { opacity: 1; }
+            100% { 
+              transform: translate(-20px, 105vh) rotate(360deg); 
+              opacity: 0; 
+            }
+          }
+        `}
+      </style>
+      {flakes.map((flake) => (
+        <img
+          key={flake.id}
+          src={SNOW_IMAGE_URL}
+          alt="snow"
+          className="absolute top-[-50px] select-none object-contain"
+          style={{
+            left: `${flake.left}%`,
+            width: `${flake.size}px`,
+            height: `${flake.size}px`,
+            opacity: flake.opacity,
+            animation: `snowfall-sway ${flake.duration}s linear ${flake.delay}s infinite`,
+            filter: 'drop-shadow(0 0 2px rgba(255,255,255,0.8))'
+          }}
+        />
+      ))}
+    </div>
+  );
+};
+
 // --- Miku Avatar SVG (像素风头像) ---
 const MikuAvatar = () => (
   <svg viewBox="0 0 24 24" className="w-full h-full bg-[#b6e3f4]" shapeRendering="crispEdges">
@@ -175,6 +239,8 @@ const App = () => {
   return (
     <>
     <PixelFontLink />
+    {/* [新增] 启用飘雪特效 */}
+    <SnowEffect />
     <div className="w-full min-h-screen font-['VT323'] bg-[#6CC478] text-[#4A2810] selection:bg-[#E67E22] selection:text-white flex flex-col overflow-x-hidden"
          style={{
            backgroundImage: `
@@ -356,7 +422,7 @@ const App = () => {
                               <Code size={32} className="text-[#5E2C0C]" />
                           </div>
                           <div>
-                              <div className="font-bold text-[#5E2C0C]">状态: 高效工作中</div>
+                              <div className="font-bold text-[#5E2C0C]">状态: 等待下课中</div>
                               <div className="text-lg text-[#8E4918]">咖啡因 Buff 生效中 (剩余 2h)</div>
                           </div>
                         </div>
