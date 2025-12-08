@@ -147,7 +147,7 @@ const App = () => {
 
     // 3. 检查是否达到20次
     if (newCount === 20) {
-      window.location.href = "http://image.aibochinese.com/i/2025/12/08/ra2nbt.png";
+      window.location.href = "http://image.aibochinese.com/i/2025/12/08/rel1qi.jpg";
     }
   };
 
