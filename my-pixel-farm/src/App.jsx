@@ -444,7 +444,7 @@ const App = () => {
               {activeTab === 'daily' && (
                 <div className="animate-in slide-in-from-right duration-300 h-full flex flex-col">
                    <h3 className="text-4xl font-bold mb-8 text-center text-[#5E2C0C] flex items-center justify-center gap-3">
-                      <Coffee size={32} /> 农场日记 <Coffee size={32} />
+                      <Coffee size={32} /> 生活记录 <Coffee size={32} />
                    </h3>
                    <div className="flex flex-col gap-8 flex-grow overflow-auto">
                       {/* 仅居中显示日记列表 */}
