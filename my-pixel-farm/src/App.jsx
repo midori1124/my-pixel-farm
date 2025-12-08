@@ -410,11 +410,11 @@ const App = () => {
                     </div>
 
                     <div className="bg-[#E6C69D] p-4 rounded border-2 border-[#9C5828] text-center w-full">
-                        <h4 className="text-xl font-bold text-[#5E2C0C] mb-3">Find Me</h4>
+                        <h4 className="text-3xl font-bold text-[#5E2C0C] mb-3">Find Me</h4>
                         <div className="flex justify-center gap-4 flex-wrap">
                             <a href={personalInfo.socials.qq} target="_blank" rel="noopener noreferrer" className="text-[#5E2C0C] hover:text-[#8E4918] transition-colors hover:scale-110 transform">
                                 <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center border-2 border-[#5E2C0C]">
-                                    <Star size={50} className="text-yellow-500" />
+                                    <Star size={24} className="text-yellow-500" />
                                 </div>
                             </a>
                             <a href={personalInfo.socials.bilibili} target="_blank" rel="noopener noreferrer" className="text-[#5E2C0C] hover:text-[#8E4918] transition-colors hover:scale-110 transform">
