@@ -232,8 +232,17 @@ const App = () => {
   // 日常数据中文化
   const dailyMoments = [
     {
+      id: 2,
+      date: "2025年12月8日 19:30",
+      title: "给我的头像点击20次（200金币）会有惊喜",
+      content: "这是一个隐藏的小彩蛋，只有坚持点击的人才能发现",
+      image: null, 
+      weather: weather.icon,
+      mood: "期待"
+    },
+    {
       id: 1,
-      date: currentFullTime, 
+      date: "2025年12月7日 15:22", 
       title: "我在今天开通了这个网站 欧耶！",
       content: "（图片只是我学校的早餐 无意义）", 
       image: "https://i.postimg.cc/d01D8Dz9/5494118cbd5d94f2e15c6250c1afa313.jpg",
