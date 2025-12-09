@@ -730,7 +730,7 @@ const App = () => {
               {activeTab === 'messages' && (
                 <div className="animate-in slide-in-from-right duration-300 h-full flex flex-col">
                    <h3 className="text-4xl font-bold mb-8 text-center text-[#5E2C0C] flex items-center justify-center gap-3">
-                      <MessageCircle size={32} /> 村庄留言板 <MessageCircle size={32} />
+                      <MessageCircle size={32} /> 留言板 <MessageCircle size={32} />
                    </h3>
                    <div className="w-full max-w-3xl mx-auto flex flex-col gap-8 h-full">
                       
