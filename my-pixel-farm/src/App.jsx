@@ -401,7 +401,7 @@ const App = () => {
                       <p className="text-xl text-[#8E4918]">{personalInfo.title}</p>
                     </div>
                     <div className="mt-4 flex gap-2 w-full justify-center mb-6">
-                        <span className="text-[#5E2C0C] text-xl">社交账号:</span>
+                        <span className="text-[#5E2C0C] text-xl">生命值:</span>
                         <Heart className="fill-red-500 text-red-500 animate-pulse" />
                         <Heart className="fill-red-500 text-red-500" />
                         <Heart className="fill-red-500 text-red-500" />
