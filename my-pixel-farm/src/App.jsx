@@ -27,10 +27,11 @@ import {
   Tv,        
   MessageCircle, 
   Star,
-  Send
+  Send,
+  AlertTriangle
 } from 'lucide-react';
 
-// --- [修复] Firebase Imports 改为标准模块引用 ---
+// --- [修复] Firebase Imports ---
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, addDoc, onSnapshot } from 'firebase/firestore';
@@ -45,14 +46,28 @@ const PixelFontLink = () => (
 const SNOW_IMAGE_URL = "http://image.aibochinese.com/i/2025/12/08/padnh6.jpg"; 
 // ==========================================
 
-// --- [初始化 Firebase] ---
-// 将初始化逻辑移至组件外部，防止重复初始化
-// 注意：__firebase_config 和 __app_id 是环境注入的全局变量
-const firebaseConfig = JSON.parse(__firebase_config);
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+// --- [关键修复] 安全初始化 Firebase ---
+// 这里加了 try-catch 和条件判断，防止在没有配置的环境（如GitHub Pages）中崩溃
+let db = null;
+let auth = null;
+let appId = 'default-app-id';
+let isCloudEnabled = false; // 标记是否启用了云端
+
+try {
+  // 检查环境变量是否存在 (这是预览环境特有的)
+  if (typeof __firebase_config !== 'undefined') {
+    const firebaseConfig = JSON.parse(__firebase_config);
+    const app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db = getFirestore(app);
+    appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+    isCloudEnabled = true;
+  } else {
+    console.log("未检测到云端配置，已切换至本地存储模式。");
+  }
+} catch (e) {
+  console.warn("Firebase 初始化跳过:", e);
+}
 
 // --- 图片飘雪特效组件 ---
 const SnowEffect = () => {
@@ -149,53 +164,57 @@ const App = () => {
     return saved ? parseInt(saved, 10) : 0;
   });
 
-  // --- [云端数据] 公共留言 ---
+  // --- [数据管理] 留言 ---
   const [messages, setMessages] = useState([]);
   const [user, setUser] = useState(null);
   
   const [inputName, setInputName] = useState("");
   const [inputMsg, setInputMsg] = useState("");
 
-  // 1. 初始化 Firebase Auth (标准模式)
+  // 1. 初始化 (Auth & Data)
   useEffect(() => {
-    const initAuth = async () => {
-      try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-          await signInAnonymously(auth);
+    // 如果支持云端（预览环境），则初始化 Auth
+    if (isCloudEnabled && auth) {
+      const initAuth = async () => {
+        try {
+          if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+            await signInWithCustomToken(auth, __initial_auth_token);
+          } else {
+            await signInAnonymously(auth);
+          }
+        } catch (e) {
+          console.error("Auth init failed:", e);
         }
-      } catch (e) {
-        console.error("Auth init failed:", e);
+      };
+      initAuth();
+      const unsubscribe = onAuthStateChanged(auth, setUser);
+      return () => unsubscribe();
+    } else {
+      // 本地模式：直接从 localStorage 读取留言
+      const savedMsgs = localStorage.getItem("pixel_farm_messages");
+      if (savedMsgs) {
+        setMessages(JSON.parse(savedMsgs));
       }
-    };
-    initAuth();
-
-    const unsubscribe = onAuthStateChanged(auth, setUser);
-    return () => unsubscribe();
+    }
   }, []);
 
-  // 2. 监听云端留言板数据
+  // 2. 监听数据
   useEffect(() => {
-    if (!user) return;
-    
-    // 监听公共留言集合
-    // 路径: /artifacts/{appId}/public/data/messages
-    const q = collection(db, 'artifacts', appId, 'public', 'data', 'messages');
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      // 前端排序：按时间戳倒序（最新的在最上面）
-      msgs.sort((a, b) => b.timestamp - a.timestamp);
-      setMessages(msgs);
-    }, (error) => {
-      console.error("读取留言失败:", error);
-    });
-
-    return () => unsubscribe();
+    // 云端模式
+    if (isCloudEnabled && user && db) {
+      const q = collection(db, 'artifacts', appId, 'public', 'data', 'messages');
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        msgs.sort((a, b) => b.timestamp - a.timestamp);
+        setMessages(msgs);
+      }, (error) => {
+        console.error("读取留言失败:", error);
+      });
+      return () => unsubscribe();
+    }
   }, [user]);
 
-  // 3. 监听本地数据变化，自动保存
+  // 3. 自动保存本地数据 (金币等)
   useEffect(() => {
     localStorage.setItem("pixel_farm_money", money.toString());
   }, [money]);
@@ -204,15 +223,18 @@ const App = () => {
     localStorage.setItem("pixel_farm_clicks", clickCount.toString());
   }, [clickCount]);
 
+  // 本地模式下的留言自动保存
+  useEffect(() => {
+    if (!isCloudEnabled) {
+      localStorage.setItem("pixel_farm_messages", JSON.stringify(messages));
+    }
+  }, [messages]);
 
-  // [修改] 发布留言到云端
+
+  // [修复] 通用发布留言函数
   const handlePostMessage = async (e) => {
     e.preventDefault();
     if (!inputName.trim() || !inputMsg.trim()) return;
-    if (!user) {
-        alert("正在连接服务器，请稍后...");
-        return;
-    }
 
     const fullDate = new Date().toLocaleString('zh-CN', {
       year: 'numeric',
@@ -224,22 +246,33 @@ const App = () => {
       hour12: false
     });
 
-    try {
-      // 写入到公共数据区
-      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'messages'), {
+    const newMessageObj = {
         name: inputName,
         content: inputMsg,
         date: fullDate,
-        timestamp: Date.now(), // 用于排序
-        userId: user.uid // 记录发布者ID (可选)
-      });
+        timestamp: Date.now(),
+    };
 
-      setMoney(money + 50); // 奖励本地金币
-      setInputMsg(""); 
-    } catch (error) {
-      console.error("发布失败:", error);
-      alert("发布失败，请检查网络");
+    if (isCloudEnabled && db && user) {
+        // --- 云端发布 ---
+        try {
+            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'messages'), {
+                ...newMessageObj,
+                userId: user.uid
+            });
+        } catch (error) {
+            console.error("云端发布失败:", error);
+            alert("发布失败，请检查网络");
+            return;
+        }
+    } else {
+        // --- 本地发布 (Fallback) ---
+        // 手动添加到 state，并触发 useEffect 保存到 localStorage
+        setMessages([ { id: Date.now(), ...newMessageObj }, ...messages ]);
     }
+
+    setMoney(money + 50);
+    setInputMsg(""); 
   };
 
   // 处理头像点击逻辑
@@ -671,14 +704,24 @@ const App = () => {
               {activeTab === 'messages' && (
                 <div className="animate-in slide-in-from-right duration-300 h-full flex flex-col">
                    <h3 className="text-4xl font-bold mb-8 text-center text-[#5E2C0C] flex items-center justify-center gap-3">
-                      <MessageCircle size={32} /> 留言板 <MessageCircle size={32} />
+                      <MessageCircle size={32} /> 村庄留言板 <MessageCircle size={32} />
                    </h3>
                    <div className="w-full max-w-3xl mx-auto flex flex-col gap-8 h-full">
                       
+                      {!isCloudEnabled && (
+                        <div className="bg-[#FFFAE3] border-l-4 border-yellow-500 p-4 text-[#8E4918] flex items-start gap-3 rounded shadow-sm">
+                           <AlertTriangle size={24} className="text-yellow-600 flex-shrink-0" />
+                           <div>
+                             <p className="font-bold">注意：当前处于本地模式</p>
+                             <p className="text-sm">留言仅保存在你的浏览器中，只有你自己能看到。若需开启公共留言，请配置 Firebase 数据库。</p>
+                           </div>
+                        </div>
+                      )}
+
                       {/* 留言列表 */}
                       <div className="flex-grow overflow-auto space-y-4 pr-2 bg-[#E6C69D] p-4 rounded border-2 border-[#9C5828] shadow-inner max-h-[500px]">
                         {messages.length === 0 && (
-                          <div className="text-center text-[#8E4918] text-xl py-10">暂无留言</div>
+                          <div className="text-center text-[#8E4918] text-xl py-10">暂无留言，快来抢沙发！</div>
                         )}
                         {messages.map(msg => (
                           <div key={msg.id} className="bg-[#FFFAE3] p-4 rounded border border-[#9C5828] shadow-sm relative group hover:-translate-y-1 transition-transform">
@@ -695,7 +738,7 @@ const App = () => {
                       {/* 留言输入框 */}
                       <div className="bg-[#FFFAE3] p-6 rounded border-2 border-[#9C5828] shadow-md">
                          <h4 className="text-2xl font-bold text-[#5E2C0C] mb-4 flex items-center gap-2">
-                           <Send size={20}/> 发布新留言
+                           <Send size={20}/> 发布新留言 (奖励50g)
                          </h4>
                          <form onSubmit={handlePostMessage} className="flex flex-col gap-4">
                             <div className="flex flex-col md:flex-row gap-4">
