@@ -139,7 +139,7 @@ const App = () => {
   // [新增] 处理头像点击逻辑
   const handleAvatarClick = () => {
     // 1. 增加金币
-    setMoney(money + 10);
+    setMoney(money + 1);
     
     // 2. 增加点击计数
     const newCount = clickCount + 1;
@@ -165,7 +165,7 @@ const App = () => {
         const data = await res.json();
         if (data.current_weather) {
           const { temperature, weathercode } = data.current_weather;
-          // 天气状态全面中文化
+          // 天气状态
           let condition = '晴朗';
           let icon = <Sun size={20} className="text-yellow-500" />;
             
@@ -193,7 +193,7 @@ const App = () => {
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
-  // 标签中文映射
+  // 标签映射
   const tabLabels = {
     profile: '角色',
     skills: '技能',
@@ -234,7 +234,7 @@ const App = () => {
     {
       id: 2,
       date: "2025年12月8日 19:30",
-      title: "给我的头像点击20次（200金币）会有惊喜",
+      title: "给我的头像点击20次（20金币）会有惊喜",
       content: "这是一个隐藏的小彩蛋，只有坚持点击的人才能发现",
       image: null, 
       weather: weather.icon,
