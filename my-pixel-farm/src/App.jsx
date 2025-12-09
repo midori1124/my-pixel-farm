@@ -30,13 +30,14 @@ import {
   Send,
   AlertTriangle,
   Wifi,
-  WifiOff
+  WifiOff,
+  Trash2 
 } from 'lucide-react';
 
 // --- Firebase Imports ---
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
-import { getFirestore, collection, addDoc, onSnapshot } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
 
 // --- 引入复古像素字体 ---
 const PixelFontLink = () => (
@@ -68,7 +69,7 @@ let isCloudEnabled = false;
 try {
   let configToUse = YOUR_FIREBASE_CONFIG;
 
-  // 预览环境兼容
+  // 预览环境兼容性检查
   if ((!configToUse || !configToUse.apiKey) && typeof window !== 'undefined' && window.__firebase_config) {
      try {
        configToUse = JSON.parse(window.__firebase_config);
@@ -78,9 +79,10 @@ try {
 
   if (configToUse && configToUse.apiKey) {
     // 防止重复初始化
-    const appName = "pixel-rpg-app";
+    const appName = "pixel-rpg-app"; 
     let app;
     const existingApp = getApps().find(a => a.name === appName);
+    
     if (existingApp) {
       app = existingApp;
     } else {
@@ -90,9 +92,9 @@ try {
     auth = getAuth(app);
     db = getFirestore(app);
     isCloudEnabled = true;
-    console.log("✅ 云端模式启动");
+    console.log("✅ 云端模式启动 (App: " + appName + ")");
   } else {
-    console.log("⚠️ 本地模式启动");
+    console.log("⚠️ 本地模式启动 (无配置)");
   }
 } catch (e) {
   console.warn("Firebase 初始化异常:", e);
@@ -183,7 +185,7 @@ const App = () => {
   const [beijingTime, setBeijingTime] = useState(new Date());
   const [weather, setWeather] = useState({ temp: '--', condition: '加载中...', icon: <Sun size={20}/> });
   
-  // --- [本地存储] ---
+  // --- [优化] 懒加载初始化 State ---
   const [money, setMoney] = useState(() => {
     try {
       const saved = localStorage.getItem("pixel_farm_money");
@@ -198,13 +200,14 @@ const App = () => {
     } catch (e) { return 0; }
   });
 
-  // [关键修复] 无论是不是云端模式，初始状态永远先读本地缓存
-  // 这样保证刷新后数据立刻显示，不会被云端的空状态覆盖
   const [messages, setMessages] = useState(() => {
-    try {
-      const saved = localStorage.getItem("pixel_farm_messages");
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) { return []; }
+    if (!isCloudEnabled) {
+      try {
+        const saved = localStorage.getItem("pixel_farm_messages");
+        return saved ? JSON.parse(saved) : [];
+      } catch (e) { return []; }
+    }
+    return [];
   });
 
   // --- [数据管理] ---
@@ -271,7 +274,7 @@ const App = () => {
     }
   }, [user]);
 
-  // 3. 自动保存金币等
+  // 3. 自动保存本地数据
   useEffect(() => {
     localStorage.setItem("pixel_farm_money", money.toString());
   }, [money]);
@@ -280,8 +283,15 @@ const App = () => {
     localStorage.setItem("pixel_farm_clicks", clickCount.toString());
   }, [clickCount]);
 
+  useEffect(() => {
+    // 只有当明确不在云端模式，或者连接失败时，才使用本地存储
+    if (!isCloudEnabled || connectionStatus === "local") {
+      localStorage.setItem("pixel_farm_messages", JSON.stringify(messages));
+    }
+  }, [messages, connectionStatus]);
 
-  // [关键修复] 发布留言逻辑
+
+  // 发布留言逻辑
   const handlePostMessage = async (e) => {
     e.preventDefault();
     if (!inputName.trim() || !inputMsg.trim()) return;
@@ -299,8 +309,7 @@ const App = () => {
         timestamp: Date.now(),
     };
 
-    // 1. 乐观更新：无论云端是否成功，先在本地显示并保存！
-    // 这样用户感觉速度很快，而且刷新不会丢
+    // 1. 乐观更新：本地先显示，用户体验更流畅
     const updatedMessages = [ { id: Date.now(), ...newMessageObj }, ...messages ];
     setMessages(updatedMessages);
     localStorage.setItem("pixel_farm_messages", JSON.stringify(updatedMessages));
@@ -316,9 +325,28 @@ const App = () => {
             });
         } catch (error) {
             console.error("Post cloud error:", error);
-            // 这里不弹窗报错了，因为本地已经保存成功了，用户体验不会断
-            // 只是如果云端没配好，别人看不到而已
+            // 失败时不打断，因为本地已经保存了
         }
+    }
+  };
+
+  // [新增] 删除留言逻辑
+  const handleDeleteMessage = async (msgId) => {
+    if (!window.confirm("确定要删除这条留言吗？")) return;
+
+    if (isCloudEnabled && db && connectionStatus === "online") {
+      // 云端删除
+      try {
+        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'messages', msgId));
+      } catch (error) {
+        console.error("Delete error:", error);
+        alert("删除失败：你可能没有权限删除这条云端留言（只有管理员或发布者可以删除，具体取决于规则设置）。");
+      }
+    } else {
+      // 本地删除
+      const newMsgs = messages.filter(msg => msg.id !== msgId);
+      setMessages(newMsgs);
+      localStorage.setItem("pixel_farm_messages", JSON.stringify(newMsgs));
     }
   };
 
@@ -780,6 +808,16 @@ const App = () => {
                         {messages.map(msg => (
                           <div key={msg.id} className="bg-[#FFFAE3] p-4 rounded border border-[#9C5828] shadow-sm relative group hover:-translate-y-1 transition-transform">
                              <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-red-800 shadow-sm border border-[#5E2C0C]"></div>
+                             
+                             {/* 删除按钮 */}
+                             <button 
+                                onClick={() => handleDeleteMessage(msg.id)}
+                                className="absolute top-2 right-2 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                title="删除留言"
+                             >
+                               <Trash2 size={18} />
+                             </button>
+
                              <div className="flex justify-between items-end mb-2 border-b border-[#E6C69D] pb-1">
                                 <span className="font-bold text-[#5E2C0C] text-xl">{msg.name}</span>
                                 <span className="text-sm text-[#8E4918]">{msg.date}</span>
