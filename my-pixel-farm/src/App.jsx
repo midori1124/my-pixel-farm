@@ -747,7 +747,7 @@ const App = () => {
                       {/* 留言列表 */}
                       <div className="flex-grow overflow-auto space-y-4 pr-2 bg-[#E6C69D] p-4 rounded border-2 border-[#9C5828] shadow-inner max-h-[500px]">
                         {messages.length === 0 && (
-                          <div className="text-center text-[#8E4918] text-xl py-10">暂无留言，快来抢沙发！</div>
+                          <div className="text-center text-[#8E4918] text-xl py-10">暂无留言</div>
                         )}
                         {messages.map(msg => (
                           <div key={msg.id} className="bg-[#FFFAE3] p-4 rounded border border-[#9C5828] shadow-sm relative group hover:-translate-y-1 transition-transform">
@@ -764,7 +764,7 @@ const App = () => {
                       {/* 留言输入框 */}
                       <div className="bg-[#FFFAE3] p-6 rounded border-2 border-[#9C5828] shadow-md">
                          <h4 className="text-2xl font-bold text-[#5E2C0C] mb-4 flex items-center gap-2">
-                           <Send size={20}/> 发布新留言 (奖励50g)
+                           <Send size={20}/> 发布新留言
                          </h4>
                          <form onSubmit={handlePostMessage} className="flex flex-col gap-4">
                             <div className="flex flex-col md:flex-row gap-4">
