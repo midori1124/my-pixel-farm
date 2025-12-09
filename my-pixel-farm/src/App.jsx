@@ -68,7 +68,7 @@ let isCloudEnabled = false;
 try {
   let configToUse = YOUR_FIREBASE_CONFIG;
 
-  // 预览环境兼容性检查
+  // 预览环境兼容
   if ((!configToUse || !configToUse.apiKey) && typeof window !== 'undefined' && window.__firebase_config) {
      try {
        configToUse = JSON.parse(window.__firebase_config);
@@ -77,11 +77,10 @@ try {
   }
 
   if (configToUse && configToUse.apiKey) {
-    // [修复] 使用唯一名称初始化 App，避免与环境默认 App 冲突
-    const appName = "pixel-rpg-app"; 
+    // 防止重复初始化
+    const appName = "pixel-rpg-app";
     let app;
     const existingApp = getApps().find(a => a.name === appName);
-    
     if (existingApp) {
       app = existingApp;
     } else {
@@ -91,9 +90,9 @@ try {
     auth = getAuth(app);
     db = getFirestore(app);
     isCloudEnabled = true;
-    console.log("✅ 云端模式启动 (App: " + appName + ")");
+    console.log("✅ 云端模式启动");
   } else {
-    console.log("⚠️ 本地模式启动 (无配置)");
+    console.log("⚠️ 本地模式启动");
   }
 } catch (e) {
   console.warn("Firebase 初始化异常:", e);
@@ -184,7 +183,7 @@ const App = () => {
   const [beijingTime, setBeijingTime] = useState(new Date());
   const [weather, setWeather] = useState({ temp: '--', condition: '加载中...', icon: <Sun size={20}/> });
   
-  // --- [优化] 懒加载初始化 State ---
+  // --- [本地存储] ---
   const [money, setMoney] = useState(() => {
     try {
       const saved = localStorage.getItem("pixel_farm_money");
@@ -199,14 +198,13 @@ const App = () => {
     } catch (e) { return 0; }
   });
 
+  // [关键修复] 无论是不是云端模式，初始状态永远先读本地缓存
+  // 这样保证刷新后数据立刻显示，不会被云端的空状态覆盖
   const [messages, setMessages] = useState(() => {
-    if (!isCloudEnabled) {
-      try {
-        const saved = localStorage.getItem("pixel_farm_messages");
-        return saved ? JSON.parse(saved) : [];
-      } catch (e) { return []; }
-    }
-    return [];
+    try {
+      const saved = localStorage.getItem("pixel_farm_messages");
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) { return []; }
   });
 
   // --- [数据管理] ---
@@ -214,6 +212,7 @@ const App = () => {
   const [inputName, setInputName] = useState("");
   const [inputMsg, setInputMsg] = useState("");
   const [connectionStatus, setConnectionStatus] = useState(isCloudEnabled ? "connecting" : "local");
+  const [dbErrorMsg, setDbErrorMsg] = useState("");
 
   // 1. 初始化 Auth
   useEffect(() => {
@@ -226,15 +225,15 @@ const App = () => {
             await signInAnonymously(auth);
           }
         } catch (e) {
-          // 静默处理错误，不打断用户体验，仅切换状态
-          console.log("Auth init fallback to local");
+          console.error("Auth init failed:", e);
           setConnectionStatus("local");
+          setDbErrorMsg("认证失败，已切换本地存储。");
         }
       };
       initAuth();
       const unsubscribe = onAuthStateChanged(auth, (u) => {
         setUser(u);
-        if (u) setConnectionStatus("online");
+        if (u) { /* Auth success */ }
       });
       return () => unsubscribe();
     } else {
@@ -249,17 +248,30 @@ const App = () => {
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         msgs.sort((a, b) => b.timestamp - a.timestamp);
-        setMessages(msgs);
+        
+        // 云端有数据，覆盖本地并显示
+        if (msgs.length > 0) {
+            setMessages(msgs);
+            localStorage.setItem("pixel_farm_messages", JSON.stringify(msgs));
+        }
         setConnectionStatus("online");
+        setDbErrorMsg(""); 
       }, (error) => {
-        console.log("Firestore read failed, staying local.");
-        setConnectionStatus("local");
+        console.error("Firestore Error:", error);
+        setConnectionStatus("local"); 
+        if (error.code === 'permission-denied') {
+            setDbErrorMsg("权限被拒绝：请在 Firebase 控制台设置 Rules 为 'allow read, write: if true;'");
+        } else if (error.code === 'not-found') {
+            setDbErrorMsg("数据库未找到：请在 Firebase 控制台创建 Firestore Database");
+        } else {
+            setDbErrorMsg("连接失败：" + error.code + " (已切换本地)");
+        }
       });
       return () => unsubscribe();
     }
   }, [user]);
 
-  // 3. 自动保存本地数据
+  // 3. 自动保存金币等
   useEffect(() => {
     localStorage.setItem("pixel_farm_money", money.toString());
   }, [money]);
@@ -268,15 +280,8 @@ const App = () => {
     localStorage.setItem("pixel_farm_clicks", clickCount.toString());
   }, [clickCount]);
 
-  useEffect(() => {
-    // 只有当明确不在云端模式，或者连接失败时，才使用本地存储
-    if (!isCloudEnabled || connectionStatus === "local") {
-      localStorage.setItem("pixel_farm_messages", JSON.stringify(messages));
-    }
-  }, [messages, connectionStatus]);
 
-
-  // 发布留言
+  // [关键修复] 发布留言逻辑
   const handlePostMessage = async (e) => {
     e.preventDefault();
     if (!inputName.trim() || !inputMsg.trim()) return;
@@ -294,24 +299,27 @@ const App = () => {
         timestamp: Date.now(),
     };
 
-    if (isCloudEnabled && db && user && connectionStatus === "online") {
-        // --- 云端发布 ---
+    // 1. 乐观更新：无论云端是否成功，先在本地显示并保存！
+    // 这样用户感觉速度很快，而且刷新不会丢
+    const updatedMessages = [ { id: Date.now(), ...newMessageObj }, ...messages ];
+    setMessages(updatedMessages);
+    localStorage.setItem("pixel_farm_messages", JSON.stringify(updatedMessages));
+
+    setInputMsg(""); 
+
+    // 2. 尝试发送到云端 (静默发送)
+    if (isCloudEnabled && db && user) {
         try {
             await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'messages'), {
                 ...newMessageObj,
                 userId: user.uid
             });
         } catch (error) {
-            console.error("Post error:", error);
-            alert("发布失败，请检查网络或 Firebase 规则配置。");
-            return;
+            console.error("Post cloud error:", error);
+            // 这里不弹窗报错了，因为本地已经保存成功了，用户体验不会断
+            // 只是如果云端没配好，别人看不到而已
         }
-    } else {
-        // --- 本地发布 ---
-        setMessages([ { id: Date.now(), ...newMessageObj }, ...messages ]);
     }
-
-    setInputMsg(""); 
   };
 
   // 头像彩蛋
@@ -757,7 +765,9 @@ const App = () => {
                            <AlertTriangle size={24} className="text-yellow-600 flex-shrink-0" />
                            <div>
                              <p className="font-bold">注意：当前处于本地模式</p>
-                             <p className="text-sm">黄色 WiFi 图标表示未能连接到云端。留言仅保存在你的浏览器中，只有你自己能看到。</p>
+                             <p className="text-sm">
+                               {dbErrorMsg || "黄色 WiFi 图标表示未能连接到云端。留言仅保存在你的浏览器中，只有你自己能看到。"}
+                             </p>
                            </div>
                         </div>
                       )}
