@@ -28,11 +28,13 @@ import {
   MessageCircle, 
   Star,
   Send,
-  AlertTriangle
+  AlertTriangle,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 
 // --- Firebase Imports ---
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, addDoc, onSnapshot } from 'firebase/firestore';
 
@@ -45,9 +47,7 @@ const PixelFontLink = () => (
 // 1. 雪花特效图片配置
 const SNOW_IMAGE_URL = "http://image.aibochinese.com/i/2025/12/08/padnh6.jpg"; 
 
-// 2. [🔥 这里填入你的 FIREBASE 配置 🔥]
-// 请用你在 Firebase 控制台里复制的内容替换下面的字符串
-// 如果保持原样，网页会自动运行在"本地模式"（留言只有你自己看得到）
+// 2. [已填入] 你的 FIREBASE 配置
 const YOUR_FIREBASE_CONFIG = {
   apiKey: "AIzaSyC_1OWd9PafNW7xO5w4ljuzLulQTHzXNDE",
   authDomain: "project-6449264268116042623.firebaseapp.com",
@@ -59,40 +59,44 @@ const YOUR_FIREBASE_CONFIG = {
 };
 // ==========================================
 
-// --- [系统逻辑] 初始化 Firebase 或 降级为本地模式 ---
+// --- [系统逻辑] 初始化 Firebase ---
 let db = null;
 let auth = null;
 let appId = 'default-app-id';
 let isCloudEnabled = false;
 
-// 尝试初始化
 try {
-  let configToUse = null;
+  let configToUse = YOUR_FIREBASE_CONFIG;
 
-  // 1. 优先检查用户是否在代码里填了真实配置
-  // (判断逻辑：apiKey 存在且不包含中文提示语)
-  if (YOUR_FIREBASE_CONFIG.apiKey && !YOUR_FIREBASE_CONFIG.apiKey.includes("在这里粘贴")) {
-    configToUse = YOUR_FIREBASE_CONFIG;
-  } 
-  // 2. 如果没填，检查是否有环境变量 (预览环境专用)
-  else if (typeof window !== 'undefined' && window.__firebase_config) {
+  // 预览环境兼容性检查
+  if ((!configToUse || !configToUse.apiKey) && typeof window !== 'undefined' && window.__firebase_config) {
      try {
        configToUse = JSON.parse(window.__firebase_config);
        if (typeof window.__app_id !== 'undefined') appId = window.__app_id;
-     } catch(e) { /* ignore */ }
+     } catch(e) {}
   }
 
-  if (configToUse) {
-    const app = initializeApp(configToUse);
+  if (configToUse && configToUse.apiKey) {
+    // [修复] 使用唯一名称初始化 App，避免与环境默认 App 冲突
+    const appName = "pixel-rpg-app"; 
+    let app;
+    const existingApp = getApps().find(a => a.name === appName);
+    
+    if (existingApp) {
+      app = existingApp;
+    } else {
+      app = initializeApp(configToUse, appName);
+    }
+    
     auth = getAuth(app);
     db = getFirestore(app);
     isCloudEnabled = true;
-    console.log("✅ 已成功连接到云端数据库！");
+    console.log("✅ 云端模式启动 (App: " + appName + ")");
   } else {
-    console.log("⚠️ 未检测到有效配置，已切换至本地存储模式。");
+    console.log("⚠️ 本地模式启动 (无配置)");
   }
 } catch (e) {
-  console.warn("Firebase 初始化跳过 (本地模式):", e);
+  console.warn("Firebase 初始化异常:", e);
   isCloudEnabled = false;
 }
 
@@ -180,53 +184,65 @@ const App = () => {
   const [beijingTime, setBeijingTime] = useState(new Date());
   const [weather, setWeather] = useState({ temp: '--', condition: '加载中...', icon: <Sun size={20}/> });
   
-  // --- [本地存储] 个人数据 ---
+  // --- [优化] 懒加载初始化 State ---
   const [money, setMoney] = useState(() => {
-    const saved = localStorage.getItem("pixel_farm_money");
-    return saved ? parseInt(saved, 10) : 114514;
+    try {
+      const saved = localStorage.getItem("pixel_farm_money");
+      return saved ? parseInt(saved, 10) : 114514;
+    } catch (e) { return 114514; }
   });
 
   const [clickCount, setClickCount] = useState(() => {
-    const saved = localStorage.getItem("pixel_farm_clicks");
-    return saved ? parseInt(saved, 10) : 0;
+    try {
+      const saved = localStorage.getItem("pixel_farm_clicks");
+      return saved ? parseInt(saved, 10) : 0;
+    } catch (e) { return 0; }
   });
 
-  // --- [数据管理] 留言 ---
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState(() => {
+    if (!isCloudEnabled) {
+      try {
+        const saved = localStorage.getItem("pixel_farm_messages");
+        return saved ? JSON.parse(saved) : [];
+      } catch (e) { return []; }
+    }
+    return [];
+  });
+
+  // --- [数据管理] ---
   const [user, setUser] = useState(null);
-  
   const [inputName, setInputName] = useState("");
   const [inputMsg, setInputMsg] = useState("");
+  const [connectionStatus, setConnectionStatus] = useState(isCloudEnabled ? "connecting" : "local");
 
-  // 1. 初始化 (Auth & Data)
+  // 1. 初始化 Auth
   useEffect(() => {
-    // 云端模式初始化
     if (isCloudEnabled && auth) {
       const initAuth = async () => {
         try {
-          // 检查是否有自定义token（预览环境用）
           if (typeof window !== 'undefined' && window.__initial_auth_token) {
             await signInWithCustomToken(auth, window.__initial_auth_token);
           } else {
             await signInAnonymously(auth);
           }
         } catch (e) {
-          console.error("Auth init failed:", e);
+          // 静默处理错误，不打断用户体验，仅切换状态
+          console.log("Auth init fallback to local");
+          setConnectionStatus("local");
         }
       };
       initAuth();
-      const unsubscribe = onAuthStateChanged(auth, setUser);
+      const unsubscribe = onAuthStateChanged(auth, (u) => {
+        setUser(u);
+        if (u) setConnectionStatus("online");
+      });
       return () => unsubscribe();
     } else {
-      // 本地模式：直接从 localStorage 读取留言
-      const savedMsgs = localStorage.getItem("pixel_farm_messages");
-      if (savedMsgs) {
-        setMessages(JSON.parse(savedMsgs));
-      }
+      setConnectionStatus("local");
     }
   }, []);
 
-  // 2. 监听数据 (云端)
+  // 2. 监听云端数据
   useEffect(() => {
     if (isCloudEnabled && user && db) {
       const q = collection(db, 'artifacts', appId, 'public', 'data', 'messages');
@@ -234,8 +250,10 @@ const App = () => {
         const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         msgs.sort((a, b) => b.timestamp - a.timestamp);
         setMessages(msgs);
+        setConnectionStatus("online");
       }, (error) => {
-        console.error("读取留言失败:", error);
+        console.log("Firestore read failed, staying local.");
+        setConnectionStatus("local");
       });
       return () => unsubscribe();
     }
@@ -250,26 +268,22 @@ const App = () => {
     localStorage.setItem("pixel_farm_clicks", clickCount.toString());
   }, [clickCount]);
 
-  // 本地模式下的留言自动保存
   useEffect(() => {
-    if (!isCloudEnabled) {
+    // 只有当明确不在云端模式，或者连接失败时，才使用本地存储
+    if (!isCloudEnabled || connectionStatus === "local") {
       localStorage.setItem("pixel_farm_messages", JSON.stringify(messages));
     }
-  }, [messages]);
+  }, [messages, connectionStatus]);
 
 
-  // 发布留言逻辑
+  // 发布留言
   const handlePostMessage = async (e) => {
     e.preventDefault();
     if (!inputName.trim() || !inputMsg.trim()) return;
 
     const fullDate = new Date().toLocaleString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
       hour12: false
     });
 
@@ -280,7 +294,7 @@ const App = () => {
         timestamp: Date.now(),
     };
 
-    if (isCloudEnabled && db && user) {
+    if (isCloudEnabled && db && user && connectionStatus === "online") {
         // --- 云端发布 ---
         try {
             await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'messages'), {
@@ -288,20 +302,19 @@ const App = () => {
                 userId: user.uid
             });
         } catch (error) {
-            console.error("云端发布失败:", error);
-            alert("发布失败，请检查网络（如果是权限问题，请在Firebase控制台设置Firestore规则）");
+            console.error("Post error:", error);
+            alert("发布失败，请检查网络或 Firebase 规则配置。");
             return;
         }
     } else {
-        // --- 本地发布 (Fallback) ---
+        // --- 本地发布 ---
         setMessages([ { id: Date.now(), ...newMessageObj }, ...messages ]);
     }
 
-    setMoney(money + 50);
     setInputMsg(""); 
   };
 
-  // 处理头像点击逻辑
+  // 头像彩蛋
   const handleAvatarClick = () => {
     setMoney(money + 10);
     const newCount = clickCount + 1;
@@ -337,7 +350,7 @@ const App = () => {
           setWeather({ temp: temperature, condition, icon });
         }
       } catch (error) {
-        console.error("Failed to fetch weather", error);
+        console.error("Weather error", error);
         setWeather({ temp: 'N/A', condition: '离线', icon: <X size={20} /> });
       }
     };
@@ -730,7 +743,12 @@ const App = () => {
               {activeTab === 'messages' && (
                 <div className="animate-in slide-in-from-right duration-300 h-full flex flex-col">
                    <h3 className="text-4xl font-bold mb-8 text-center text-[#5E2C0C] flex items-center justify-center gap-3">
-                      <MessageCircle size={32} /> 留言板 <MessageCircle size={32} />
+                      <MessageCircle size={32} /> 
+                      留言板 
+                      <span className="ml-2" title={isCloudEnabled ? "云端数据库已连接" : "本地模式 (仅自己可见)"}>
+                        {connectionStatus === "online" ? <Wifi size={24} className="text-green-600" /> : <WifiOff size={24} className="text-yellow-600" />}
+                      </span>
+                      <MessageCircle size={32} />
                    </h3>
                    <div className="w-full max-w-3xl mx-auto flex flex-col gap-8 h-full">
                       
@@ -739,7 +757,7 @@ const App = () => {
                            <AlertTriangle size={24} className="text-yellow-600 flex-shrink-0" />
                            <div>
                              <p className="font-bold">注意：当前处于本地模式</p>
-                             <p className="text-sm">留言仅保存在你的浏览器中，只有你自己能看到。若需开启公共留言，请配置 Firebase 数据库。</p>
+                             <p className="text-sm">黄色 WiFi 图标表示未能连接到云端。留言仅保存在你的浏览器中，只有你自己能看到。</p>
                            </div>
                         </div>
                       )}
@@ -747,7 +765,7 @@ const App = () => {
                       {/* 留言列表 */}
                       <div className="flex-grow overflow-auto space-y-4 pr-2 bg-[#E6C69D] p-4 rounded border-2 border-[#9C5828] shadow-inner max-h-[500px]">
                         {messages.length === 0 && (
-                          <div className="text-center text-[#8E4918] text-xl py-10">暂无留言</div>
+                          <div className="text-center text-[#8E4918] text-xl py-10">暂无留言，快来抢沙发！</div>
                         )}
                         {messages.map(msg => (
                           <div key={msg.id} className="bg-[#FFFAE3] p-4 rounded border border-[#9C5828] shadow-sm relative group hover:-translate-y-1 transition-transform">
