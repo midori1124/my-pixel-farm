@@ -204,7 +204,7 @@ const App = () => {
   const personalInfo = {
     name: "緑ミドリ", 
     title: "Lv.20 大学生",
-    farmName: "Pixel Code Farm",
+    farmName: " Midori Farm",
     intro: "你好！欢迎来到我的私人农场 在这里你能看到我的信息 。我会在这留下自己的生活碎片和自己的介绍 记录一下自己的人生",
     email: "midori@stardew.dev",
     socials: {
