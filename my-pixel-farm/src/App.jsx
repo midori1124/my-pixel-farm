@@ -26,8 +26,14 @@ import {
   Instagram, 
   Tv,        
   MessageCircle, 
-  Star 
+  Star,
+  Send
 } from 'lucide-react';
+
+// --- [修复] Firebase Imports 改为标准模块引用 ---
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
+import { getFirestore, collection, addDoc, onSnapshot } from 'firebase/firestore';
 
 // --- 引入复古像素字体 ---
 const PixelFontLink = () => (
@@ -39,20 +45,28 @@ const PixelFontLink = () => (
 const SNOW_IMAGE_URL = "http://image.aibochinese.com/i/2025/12/08/padnh6.jpg"; 
 // ==========================================
 
+// --- [初始化 Firebase] ---
+// 将初始化逻辑移至组件外部，防止重复初始化
+// 注意：__firebase_config 和 __app_id 是环境注入的全局变量
+const firebaseConfig = JSON.parse(__firebase_config);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
 // --- 图片飘雪特效组件 ---
 const SnowEffect = () => {
   const [flakes, setFlakes] = useState([]);
 
   useEffect(() => {
-    // 生成 30 片随机雪花
     const newFlakes = Array.from({ length: 30 }).map((_, i) => ({
       id: i,
-      left: Math.random() * 100,      // 起始水平位置 0-100%
-      duration: Math.random() * 5 + 8, // 下落时长 8-13秒
-      delay: Math.random() * 5,       // 初始延迟
-      size: Math.random() * 15 + 15,  // 图片大小
-      opacity: Math.random() * 0.4 + 0.6, // 透明度
-      sway: Math.random() * 40 - 20,  // 左右摇摆幅度
+      left: Math.random() * 100,      
+      duration: Math.random() * 5 + 8, 
+      delay: Math.random() * 5,       
+      size: Math.random() * 15 + 15,  
+      opacity: Math.random() * 0.4 + 0.6, 
+      sway: Math.random() * 40 - 20,  
     }));
     setFlakes(newFlakes);
   }, []);
@@ -62,19 +76,11 @@ const SnowEffect = () => {
       <style>
         {`
           @keyframes snowfall-sway {
-            0% { 
-              transform: translate(0, -10vh) rotate(0deg); 
-              opacity: 0; 
-            }
+            0% { transform: translate(0, -10vh) rotate(0deg); opacity: 0; }
             10% { opacity: 1; }
-            50% {
-              transform: translate(20px, 50vh) rotate(180deg);
-            }
+            50% { transform: translate(20px, 50vh) rotate(180deg); }
             90% { opacity: 1; }
-            100% { 
-              transform: translate(-20px, 105vh) rotate(360deg); 
-              opacity: 0; 
-            }
+            100% { transform: translate(-20px, 105vh) rotate(360deg); opacity: 0; }
           }
         `}
       </style>
@@ -127,25 +133,120 @@ const MikuAvatar = () => (
 const App = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');
-  const [money, setMoney] = useState(114514); 
+  
   const [imgError, setImgError] = useState(false);
   const [beijingTime, setBeijingTime] = useState(new Date());
-  // 初始化天气状态为中文
   const [weather, setWeather] = useState({ temp: '--', condition: '加载中...', icon: <Sun size={20}/> });
   
-  // [新增] 点击计数状态
-  const [clickCount, setClickCount] = useState(0);
+  // --- [本地存储] 个人数据 ---
+  const [money, setMoney] = useState(() => {
+    const saved = localStorage.getItem("pixel_farm_money");
+    return saved ? parseInt(saved, 10) : 114514;
+  });
 
-  // [新增] 处理头像点击逻辑
-  const handleAvatarClick = () => {
-    // 1. 增加金币
-    setMoney(money + 1);
+  const [clickCount, setClickCount] = useState(() => {
+    const saved = localStorage.getItem("pixel_farm_clicks");
+    return saved ? parseInt(saved, 10) : 0;
+  });
+
+  // --- [云端数据] 公共留言 ---
+  const [messages, setMessages] = useState([]);
+  const [user, setUser] = useState(null);
+  
+  const [inputName, setInputName] = useState("");
+  const [inputMsg, setInputMsg] = useState("");
+
+  // 1. 初始化 Firebase Auth (标准模式)
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+      } catch (e) {
+        console.error("Auth init failed:", e);
+      }
+    };
+    initAuth();
+
+    const unsubscribe = onAuthStateChanged(auth, setUser);
+    return () => unsubscribe();
+  }, []);
+
+  // 2. 监听云端留言板数据
+  useEffect(() => {
+    if (!user) return;
     
-    // 2. 增加点击计数
+    // 监听公共留言集合
+    // 路径: /artifacts/{appId}/public/data/messages
+    const q = collection(db, 'artifacts', appId, 'public', 'data', 'messages');
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // 前端排序：按时间戳倒序（最新的在最上面）
+      msgs.sort((a, b) => b.timestamp - a.timestamp);
+      setMessages(msgs);
+    }, (error) => {
+      console.error("读取留言失败:", error);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  // 3. 监听本地数据变化，自动保存
+  useEffect(() => {
+    localStorage.setItem("pixel_farm_money", money.toString());
+  }, [money]);
+
+  useEffect(() => {
+    localStorage.setItem("pixel_farm_clicks", clickCount.toString());
+  }, [clickCount]);
+
+
+  // [修改] 发布留言到云端
+  const handlePostMessage = async (e) => {
+    e.preventDefault();
+    if (!inputName.trim() || !inputMsg.trim()) return;
+    if (!user) {
+        alert("正在连接服务器，请稍后...");
+        return;
+    }
+
+    const fullDate = new Date().toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+
+    try {
+      // 写入到公共数据区
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'messages'), {
+        name: inputName,
+        content: inputMsg,
+        date: fullDate,
+        timestamp: Date.now(), // 用于排序
+        userId: user.uid // 记录发布者ID (可选)
+      });
+
+      setMoney(money + 50); // 奖励本地金币
+      setInputMsg(""); 
+    } catch (error) {
+      console.error("发布失败:", error);
+      alert("发布失败，请检查网络");
+    }
+  };
+
+  // 处理头像点击逻辑
+  const handleAvatarClick = () => {
+    setMoney(money + 10);
     const newCount = clickCount + 1;
     setClickCount(newCount);
-
-    // 3. 检查是否达到20次
     if (newCount === 20) {
       window.location.href = "http://image.aibochinese.com/i/2025/12/08/rel1qi.jpg";
     }
@@ -165,7 +266,6 @@ const App = () => {
         const data = await res.json();
         if (data.current_weather) {
           const { temperature, weathercode } = data.current_weather;
-          // 天气状态
           let condition = '晴朗';
           let icon = <Sun size={20} className="text-yellow-500" />;
             
@@ -193,18 +293,18 @@ const App = () => {
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
-  // 标签映射
   const tabLabels = {
     profile: '角色',
     skills: '技能',
     projects: '任务',
-    daily: '日常'
+    daily: '日常',
+    messages: '留言板'
   };
 
   const personalInfo = {
     name: "緑ミドリ", 
     title: "Lv.20 大学生",
-    farmName: " Midori Farm",
+    farmName: "Pixel Code Farm",
     intro: "你好！欢迎来到我的私人农场 在这里你能看到我的信息 。我会在这留下自己的生活碎片和自己的介绍 记录一下自己的人生",
     email: "midori@stardew.dev",
     socials: {
@@ -223,18 +323,16 @@ const App = () => {
     { name: "摄影 (Photography)", level: 6, icon: <Camera size={24} />, color: "bg-purple-500" },
   ];
 
-  // 任务数据中文化
   const projects = [
     { id: 1, title: "大学进度", type: "学习", desc: "目前进度1/4 大一下在读", reward: "一份工作（？）", tags: [] },
     { id: 2, title: "全中国旅行点亮", type: "探索", desc: "目前已点亮 28/34。未点亮：安徽、宁夏、青海、河北、新疆、西藏。", reward: "阅历++", tags: ["旅行", "中国"] }
   ];
 
-  // 日常数据中文化
   const dailyMoments = [
     {
       id: 2,
       date: "2025年12月8日 19:30",
-      title: "给我的头像点击20次（20金币）会有惊喜",
+      title: "给我的头像点击20次（200金币）会有惊喜",
       content: "这是一个隐藏的小彩蛋，只有坚持点击的人才能发现",
       image: null, 
       weather: weather.icon,
@@ -317,7 +415,7 @@ const App = () => {
       {isMenuOpen && (
         <div className="fixed top-16 left-0 w-full bg-[#E09F5B] border-b-4 border-[#5E2C0C] z-40 p-4 md:hidden shadow-xl">
           <div className="flex flex-col gap-2">
-            {['profile', 'skills', 'projects', 'daily'].map(tab => (
+            {['profile', 'skills', 'projects', 'daily', 'messages'].map(tab => (
               <button 
                 key={tab}
                 onClick={() => { setActiveTab(tab); setIsMenuOpen(false); }}
@@ -327,7 +425,7 @@ const App = () => {
                 {tab === 'skills' && <Sprout size={20}/>}
                 {tab === 'projects' && <Hammer size={20}/>}
                 {tab === 'daily' && <Coffee size={20}/>}
-                {/* 移动端菜单显示中文 */}
+                {tab === 'messages' && <MessageCircle size={20}/>}
                 {tabLabels[tab]}
               </button>
             ))}
@@ -339,13 +437,14 @@ const App = () => {
       <div className="flex-grow flex items-center justify-center pt-24 pb-8 px-4 w-full">
         <div className="w-full max-w-6xl">
            
-          {/* 桌面端标签栏 - 使用 tabLabels 显示中文 */}
+          {/* 桌面端标签栏 */}
           <div className="hidden md:flex justify-center gap-4 mb-[-4px] relative z-10 px-8">
             {[
               { id: 'profile', icon: <User size={24} /> },
               { id: 'skills', icon: <Sprout size={24} /> },
               { id: 'projects', icon: <Hammer size={24} /> },
-              { id: 'daily', icon: <Coffee size={24} /> }
+              { id: 'daily', icon: <Coffee size={24} /> },
+              { id: 'messages', icon: <MessageCircle size={24} /> }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -376,7 +475,6 @@ const App = () => {
               {activeTab === 'profile' && (
                 <div className="flex flex-col md:flex-row gap-8 animate-in fade-in duration-300 h-full">
                   <div className="md:w-1/3 flex flex-col items-center justify-center">
-                    {/* [修改] 将原来的内联 onClick 替换为新的 handleAvatarClick 函数 */}
                     <div className="w-48 h-48 bg-[#D6A672] border-4 border-[#5E2C0C] rounded-lg mb-4 flex items-center justify-center relative overflow-hidden shadow-inner group cursor-pointer" onClick={handleAvatarClick}>
                       <div className="w-full h-full relative">
                           <div className="absolute inset-0">
@@ -401,7 +499,7 @@ const App = () => {
                       <p className="text-xl text-[#8E4918]">{personalInfo.title}</p>
                     </div>
                     <div className="mt-4 flex gap-2 w-full justify-center mb-6">
-                        <span className="text-[#5E2C0C] text-xl">生命值:</span>
+                        <span className="text-[#5E2C0C] text-xl">社交账号:</span>
                         <Heart className="fill-red-500 text-red-500 animate-pulse" />
                         <Heart className="fill-red-500 text-red-500" />
                         <Heart className="fill-red-500 text-red-500" />
@@ -450,7 +548,7 @@ const App = () => {
                               <Code size={32} className="text-[#5E2C0C]" />
                           </div>
                           <div>
-                              <div className="font-bold text-[#5E2C0C]">状态: 准备睡觉中</div>
+                              <div className="font-bold text-[#5E2C0C]">状态: 等待下课中</div>
                               <div className="text-lg text-[#8E4918]">咖啡因 Buff 生效中 (剩余 2h)</div>
                           </div>
                         </div>
@@ -568,6 +666,68 @@ const App = () => {
                    </div>
                 </div>
               )}
+
+              {/* --- 留言板 TAB (新增) --- */}
+              {activeTab === 'messages' && (
+                <div className="animate-in slide-in-from-right duration-300 h-full flex flex-col">
+                   <h3 className="text-4xl font-bold mb-8 text-center text-[#5E2C0C] flex items-center justify-center gap-3">
+                      <MessageCircle size={32} /> 留言板 <MessageCircle size={32} />
+                   </h3>
+                   <div className="w-full max-w-3xl mx-auto flex flex-col gap-8 h-full">
+                      
+                      {/* 留言列表 */}
+                      <div className="flex-grow overflow-auto space-y-4 pr-2 bg-[#E6C69D] p-4 rounded border-2 border-[#9C5828] shadow-inner max-h-[500px]">
+                        {messages.length === 0 && (
+                          <div className="text-center text-[#8E4918] text-xl py-10">暂无留言</div>
+                        )}
+                        {messages.map(msg => (
+                          <div key={msg.id} className="bg-[#FFFAE3] p-4 rounded border border-[#9C5828] shadow-sm relative group hover:-translate-y-1 transition-transform">
+                             <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-red-800 shadow-sm border border-[#5E2C0C]"></div>
+                             <div className="flex justify-between items-end mb-2 border-b border-[#E6C69D] pb-1">
+                                <span className="font-bold text-[#5E2C0C] text-xl">{msg.name}</span>
+                                <span className="text-sm text-[#8E4918]">{msg.date}</span>
+                             </div>
+                             <p className="text-[#4A2810] text-xl leading-snug">{msg.content}</p>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* 留言输入框 */}
+                      <div className="bg-[#FFFAE3] p-6 rounded border-2 border-[#9C5828] shadow-md">
+                         <h4 className="text-2xl font-bold text-[#5E2C0C] mb-4 flex items-center gap-2">
+                           <Send size={20}/> 发布新留言
+                         </h4>
+                         <form onSubmit={handlePostMessage} className="flex flex-col gap-4">
+                            <div className="flex flex-col md:flex-row gap-4">
+                                <input 
+                                  type="text" 
+                                  placeholder="你的名字..." 
+                                  className="bg-white border-2 border-[#8E4918] px-3 py-2 rounded text-xl focus:outline-none focus:border-[#E67E22] md:w-1/3 placeholder-[#E6C69D]"
+                                  value={inputName}
+                                  onChange={(e) => setInputName(e.target.value)}
+                                  maxLength={10}
+                                />
+                                <input 
+                                  type="text" 
+                                  placeholder="写点什么吧..." 
+                                  className="bg-white border-2 border-[#8E4918] px-3 py-2 rounded text-xl focus:outline-none focus:border-[#E67E22] flex-grow placeholder-[#E6C69D]"
+                                  value={inputMsg}
+                                  onChange={(e) => setInputMsg(e.target.value)}
+                                  maxLength={50}
+                                />
+                            </div>
+                            <button 
+                              type="submit" 
+                              className="self-end bg-[#D35400] text-[#FFE6CC] border-2 border-[#5E2C0C] px-6 py-2 rounded text-xl font-bold hover:bg-[#E67E22] shadow-[0_4px_0_#8E3200] hover:shadow-[0_2px_0_#8E3200] hover:translate-y-[2px] transition-all"
+                            >
+                              发布留言
+                            </button>
+                         </form>
+                      </div>
+                   </div>
+                </div>
+              )}
+
             </div>
           </div>
         </div>
