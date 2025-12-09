@@ -31,7 +31,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 
-// --- [修复] Firebase Imports ---
+// --- Firebase Imports ---
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, addDoc, onSnapshot } from 'firebase/firestore';
@@ -42,31 +42,58 @@ const PixelFontLink = () => (
 );
 
 // ==========================================
-// 雪花特效图片配置
+// 1. 雪花特效图片配置
 const SNOW_IMAGE_URL = "http://image.aibochinese.com/i/2025/12/08/padnh6.jpg"; 
+
+// 2. [🔥 这里填入你的 FIREBASE 配置 🔥]
+// 请用你在 Firebase 控制台里复制的内容替换下面的字符串
+// 如果保持原样，网页会自动运行在"本地模式"（留言只有你自己看得到）
+const YOUR_FIREBASE_CONFIG = {
+  apiKey: "AIzaSyC_1OWd9PafNW7xO5w4ljuzLulQTHzXNDE",
+  authDomain: "project-6449264268116042623.firebaseapp.com",
+  projectId: "project-6449264268116042623",
+  storageBucket: "project-6449264268116042623.firebasestorage.app",
+  messagingSenderId: "92166328998",
+  appId: "1:92166328998:web:ebe648d41e12b1b7131a67",
+  measurementId: "G-7B81C2J025"
+};
 // ==========================================
 
-// --- [关键修复] 安全初始化 Firebase ---
-// 这里加了 try-catch 和条件判断，防止在没有配置的环境（如GitHub Pages）中崩溃
+// --- [系统逻辑] 初始化 Firebase 或 降级为本地模式 ---
 let db = null;
 let auth = null;
 let appId = 'default-app-id';
-let isCloudEnabled = false; // 标记是否启用了云端
+let isCloudEnabled = false;
 
+// 尝试初始化
 try {
-  // 检查环境变量是否存在 (这是预览环境特有的)
-  if (typeof __firebase_config !== 'undefined') {
-    const firebaseConfig = JSON.parse(__firebase_config);
-    const app = initializeApp(firebaseConfig);
+  let configToUse = null;
+
+  // 1. 优先检查用户是否在代码里填了真实配置
+  // (判断逻辑：apiKey 存在且不包含中文提示语)
+  if (YOUR_FIREBASE_CONFIG.apiKey && !YOUR_FIREBASE_CONFIG.apiKey.includes("在这里粘贴")) {
+    configToUse = YOUR_FIREBASE_CONFIG;
+  } 
+  // 2. 如果没填，检查是否有环境变量 (预览环境专用)
+  else if (typeof window !== 'undefined' && window.__firebase_config) {
+     try {
+       configToUse = JSON.parse(window.__firebase_config);
+       if (typeof window.__app_id !== 'undefined') appId = window.__app_id;
+     } catch(e) { /* ignore */ }
+  }
+
+  if (configToUse) {
+    const app = initializeApp(configToUse);
     auth = getAuth(app);
     db = getFirestore(app);
-    appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
     isCloudEnabled = true;
+    console.log("✅ 已成功连接到云端数据库！");
   } else {
-    console.log("未检测到云端配置，已切换至本地存储模式。");
+    console.log("⚠️ 未检测到有效配置，已切换至本地存储模式。");
   }
 } catch (e) {
-  console.warn("Firebase 初始化跳过:", e);
+  console.warn("Firebase 初始化跳过 (本地模式):", e);
+  isCloudEnabled = false;
 }
 
 // --- 图片飘雪特效组件 ---
@@ -173,12 +200,13 @@ const App = () => {
 
   // 1. 初始化 (Auth & Data)
   useEffect(() => {
-    // 如果支持云端（预览环境），则初始化 Auth
+    // 云端模式初始化
     if (isCloudEnabled && auth) {
       const initAuth = async () => {
         try {
-          if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-            await signInWithCustomToken(auth, __initial_auth_token);
+          // 检查是否有自定义token（预览环境用）
+          if (typeof window !== 'undefined' && window.__initial_auth_token) {
+            await signInWithCustomToken(auth, window.__initial_auth_token);
           } else {
             await signInAnonymously(auth);
           }
@@ -198,9 +226,8 @@ const App = () => {
     }
   }, []);
 
-  // 2. 监听数据
+  // 2. 监听数据 (云端)
   useEffect(() => {
-    // 云端模式
     if (isCloudEnabled && user && db) {
       const q = collection(db, 'artifacts', appId, 'public', 'data', 'messages');
       const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -214,7 +241,7 @@ const App = () => {
     }
   }, [user]);
 
-  // 3. 自动保存本地数据 (金币等)
+  // 3. 自动保存本地数据
   useEffect(() => {
     localStorage.setItem("pixel_farm_money", money.toString());
   }, [money]);
@@ -231,7 +258,7 @@ const App = () => {
   }, [messages]);
 
 
-  // [修复] 通用发布留言函数
+  // 发布留言逻辑
   const handlePostMessage = async (e) => {
     e.preventDefault();
     if (!inputName.trim() || !inputMsg.trim()) return;
@@ -262,12 +289,11 @@ const App = () => {
             });
         } catch (error) {
             console.error("云端发布失败:", error);
-            alert("发布失败，请检查网络");
+            alert("发布失败，请检查网络（如果是权限问题，请在Firebase控制台设置Firestore规则）");
             return;
         }
     } else {
         // --- 本地发布 (Fallback) ---
-        // 手动添加到 state，并触发 useEffect 保存到 localStorage
         setMessages([ { id: Date.now(), ...newMessageObj }, ...messages ]);
     }
 
