@@ -46,9 +46,9 @@ const PixelFontLink = () => (
 
 // ==========================================
 // 1. 雪花特效图片配置
-const SNOW_IMAGE_URL = "http://image.aibochinese.com/i/2025/12/08/padnh6.jpg"; 
+const SNOW_IMAGE_URL = "https://img.cdn1.vip/i/6a07d9187eb3e_1778899224.jpg"; 
 
-// 2. [已填入] 你的 FIREBASE 配置
+// 2. 你的 FIREBASE 配置
 const YOUR_FIREBASE_CONFIG = {
   apiKey: "AIzaSyC_1OWd9PafNW7xO5w4ljuzLulQTHzXNDE",
   authDomain: "project-6449264268116042623.firebaseapp.com",
@@ -69,7 +69,6 @@ let isCloudEnabled = false;
 try {
   let configToUse = YOUR_FIREBASE_CONFIG;
 
-  // 预览环境兼容性检查
   if ((!configToUse || !configToUse.apiKey) && typeof window !== 'undefined' && window.__firebase_config) {
      try {
        configToUse = JSON.parse(window.__firebase_config);
@@ -78,28 +77,234 @@ try {
   }
 
   if (configToUse && configToUse.apiKey) {
-    // 防止重复初始化
     const appName = "pixel-rpg-app"; 
     let app;
     const existingApp = getApps().find(a => a.name === appName);
-    
-    if (existingApp) {
-      app = existingApp;
-    } else {
-      app = initializeApp(configToUse, appName);
-    }
+    if (existingApp) { app = existingApp; } 
+    else { app = initializeApp(configToUse, appName); }
     
     auth = getAuth(app);
     db = getFirestore(app);
     isCloudEnabled = true;
-    console.log("✅ 云端模式启动 (App: " + appName + ")");
-  } else {
-    console.log("⚠️ 本地模式启动 (无配置)");
   }
 } catch (e) {
-  console.warn("Firebase 初始化异常:", e);
   isCloudEnabled = false;
 }
+
+// --- 多语言字典 (Translations) ---
+const WEATHER_LOCALE = {
+  'clear': { zh: '晴朗', en: 'Clear', ja: '晴れ', tw: '晴朗' },
+  'cloudy': { zh: '多云', en: 'Cloudy', ja: '曇り', tw: '多雲' },
+  'fog': { zh: '雾', en: 'Fog', ja: '霧', tw: '霧' },
+  'rain': { zh: '雨', en: 'Rain', ja: '雨', tw: '雨' },
+  'snow': { zh: '雪', en: 'Snow', ja: '雪', tw: '雪' },
+  'thunder': { zh: '雷暴', en: 'Thunder', ja: '雷雨', tw: '雷暴' },
+  'loading': { zh: '加载中...', en: 'Loading...', ja: '読込中...', tw: '加載中...' },
+  'offline': { zh: '离线', en: 'Offline', ja: 'オフライン', tw: '離線' }
+};
+
+const locales = {
+  zh: {
+    tabs: { profile: '角色', skills: '技能', projects: '任务', daily: '日常', messages: '留言板' },
+    topbar: { bjTime: '(BJ)' },
+    avatar: { clickMe: '点我!' },
+    profile: {
+      name: "緑ミドリ", title: "Lv.20 大学生", farmName: "Pixel Code Farm",
+      social: "社交账号:", findMe: "Find Me", log: "冒险日志",
+      curFarm: "当前农场:",
+      intro1: "你好！欢迎来到我的私人农场 在这里你能看到我的信息 。我会在这留下自己的生活碎片和自己的介绍 记录一下自己的人生",
+      intro2: "目前我是一个在日本留学的大学生，攻读信息系统专业（情報システム）。这是我无聊敲出来的小网站，总之就是没事干。",
+      intro3: "我的日语和英语不是很好，日语基本上可以听懂但是对话有点困难，英语的话只能理解简单的（抱歉）。",
+      status: "状态: 睡觉中", buff: "咖啡因 Buff 生效中 (剩余 0h)"
+    },
+    skillsUI: { title: "技能等级" },
+    skillsData: [
+      { name: "网络冲浪 (Web Surfing)", level: 10 },
+      { name: "个人菜谱 (Cooking)", level: 4 },
+      { name: "游戏能力 (Gaming)", level: 7 },
+      { name: "行动能力 (Action)", level: 5 },
+      { name: "摄影 (Photography)", level: 6 },
+    ],
+    projectsUI: { title: "悬赏任务", newQuest: "有新任务！", reward: "奖励" },
+    projectsData: [
+      { id: 1, title: "大学进度", type: "学习", desc: "目前进度2/4 大二上在读", reward: "一份工作（？）", tags: [] },
+      { id: 2, title: "全中国旅行点亮", type: "探索", desc: "目前已点亮 28/34。未点亮：安徽、宁夏、青海、河北、新疆、西藏。", reward: "阅历++", tags: ["旅行", "中国"] }
+    ],
+    dailyUI: { title: "农场日记", mood: "心情:" },
+    dailyData: [
+      { id: 3, date: "4月20日 18:33", title: "就是看看猫", content: "", mood: "治愈" },
+      { id: 2, date: "2025年12月8日 19:30", title: "给我的头像点击20次（200金币）会有惊喜", content: "这是一个隐藏的小彩蛋，只有坚持点击的人才能发现", mood: "期待" },
+      { id: 1, date: "2025年12月7日 15:22", title: "我在今天开通了这个网站 欧耶！", content: "（图片只是我学校的早餐 无意义）", mood: "开心" }
+    ],
+    messagesUI: {
+      title: "留言板",
+      localWarningTitle: "注意：当前处于本地模式",
+      localWarningDesc: "黄色 WiFi 图标表示未能连接到云端。留言仅保存在你的浏览器中，只有你自己能看到。",
+      empty: "暂无留言，快来抢沙发！",
+      postTitle: "发布新留言",
+      namePlaceholder: "你的名字...",
+      msgPlaceholder: "写点什么吧...",
+      postBtn: "发布留言",
+      deleteConfirm: "确定要删除这条留言吗？",
+      deleteError: "删除失败：你可能没有权限删除这条云端留言（只有管理员或发布者可以删除，具体取决于规则设置）。",
+      postError: "发布失败！请检查网络或 Firebase 规则配置。"
+    }
+  },
+  en: {
+    tabs: { profile: 'Profile', skills: 'Skills', projects: 'Quests', daily: 'Daily', messages: 'Board' },
+    topbar: { bjTime: '(BJ)' },
+    avatar: { clickMe: 'Click!' },
+    profile: {
+      name: "Midori", title: "Lv.20 Uni Student", farmName: "Pixel Code Farm",
+      social: "Socials:", findMe: "Find Me", log: "Adventure Log",
+      curFarm: "Current Farm:",
+      intro1: "Hello! Welcome to my private farm. Here you can see my info. I will leave fragments of my life and introduce myself, recording my life journey.",
+      intro2: "Currently, I am a university student studying in Japan, majoring in Information Systems. This is a small website I built out of boredom, basically because I have nothing else to do.",
+      intro3: "My Japanese and English aren't very good. I can mostly understand Japanese when listening, but conversing is a bit tough. As for English, I can only understand simple phrases (sorry!).",
+      status: "Status: Sleeping", buff: "Caffeine Buff Active (0h left)"
+    },
+    skillsUI: { title: "Skill Levels" },
+    skillsData: [
+      { name: "Web Surfing", level: 10 },
+      { name: "Cooking", level: 4 },
+      { name: "Gaming", level: 7 },
+      { name: "Action", level: 5 },
+      { name: "Photography", level: 6 },
+    ],
+    projectsUI: { title: "Bounty Quests", newQuest: "New Quest!", reward: "Reward" },
+    projectsData: [
+      { id: 1, title: "Uni Progress", type: "Study", desc: "Current progress 2/4. Sophomore year.", reward: "A job (?)", tags: [] },
+      { id: 2, title: "Travel China", type: "Explore", desc: "Currently unlocked 28/34. Locked: Anhui, Ningxia, Qinghai, Hebei, Xinjiang, Tibet.", reward: "EXP++", tags: ["Travel", "China"] }
+    ],
+    dailyUI: { title: "Farm Diary", mood: "Mood:" },
+    dailyData: [
+      { id: 3, date: "Apr 20, 18:33", title: "Just looking at cats", content: "", mood: "Healed" },
+      { id: 2, date: "Dec 8, 2025 19:30", title: "Click my avatar 20 times (200G) for a surprise", content: "This is a hidden easter egg, only those who keep clicking will find it.", mood: "Expectant" },
+      { id: 1, date: "Dec 7, 2025 15:22", title: "I launched this website today, Oh yeah!", content: "(The picture is just my school breakfast, no meaning)", mood: "Happy" }
+    ],
+    messagesUI: {
+      title: "Message Board",
+      localWarningTitle: "Note: Currently in Local Mode",
+      localWarningDesc: "The yellow WiFi icon means it's not connected to the cloud. Messages are only saved in your browser.",
+      empty: "No messages yet, be the first to post!",
+      postTitle: "Post New Message",
+      namePlaceholder: "Your name...",
+      msgPlaceholder: "Say something...",
+      postBtn: "Post Message",
+      deleteConfirm: "Are you sure you want to delete this message?",
+      deleteError: "Delete failed: You may not have permission to delete this cloud message.",
+      postError: "Post failed! Please check your network or Firebase rules."
+    }
+  },
+  ja: {
+    tabs: { profile: 'キャラ', skills: 'スキル', projects: 'クエスト', daily: '日常', messages: '掲示板' },
+    topbar: { bjTime: '(BJ)' },
+    avatar: { clickMe: 'ｸﾘｯク!' },
+    profile: {
+      name: "緑ミドリ", title: "Lv.20 大学生", farmName: "Pixel Code Farm",
+      social: "SNS:", findMe: "Find Me", log: "冒険ログ",
+      curFarm: "現在の農場:",
+      intro1: "こんにちは！私のプライベート農場へようこそ。ここでは私の情報を見ることができます。生活の断片や自己紹介を残し、人生を記録していきます。",
+      intro2: "現在、日本に留学している大学生で、情報システムを専攻しています。これは暇つぶしに作った小さなサイトです。とにかくやることがなくて。",
+      intro3: "私の日本語と英語はあまり上手ではありません。日本語は基本的に聞き取れますが、会話は少し難しいです。英語は簡単な言葉しか理解できません（ごめんなさい）。",
+      status: "状態: 睡眠中", buff: "カフェインバフ発動中 (残り0時間)"
+    },
+    skillsUI: { title: "スキルレベル" },
+    skillsData: [
+      { name: "ネットサーフィン (Web Surfing)", level: 10 },
+      { name: "料理 (Cooking)", level: 4 },
+      { name: "ゲーム (Gaming)", level: 7 },
+      { name: "行動力 (Action)", level: 5 },
+      { name: "写真 (Photography)", level: 6 },
+    ],
+    projectsUI: { title: "懸賞クエスト", newQuest: "新クエスト！", reward: "報酬" },
+    projectsData: [
+      { id: 1, title: "大学の進捗", type: "学習", desc: "現在の進捗 2/4。大学2年生。", reward: "仕事（？）", tags: [] },
+      { id: 2, title: "中国全土旅行", type: "探索", desc: "現在 28/34 を解放。未解放: 安徽、寧夏、青海、河北、新疆、西蔵。", reward: "経験値++", tags: ["旅行", "中国"] }
+    ],
+    dailyUI: { title: "農場日記", mood: "気分:" },
+    dailyData: [
+      { id: 3, date: "4月20日 18:33", title: "ただ猫を見るだけ", content: "", mood: "癒やし" },
+      { id: 2, date: "2025年12月8日 19:30", title: "アバターを20回（200G）クリックするとサプライズが", content: "これは隠されたイースターエッグです。クリックし続ける人だけが見つけることができます。", mood: "期待" },
+      { id: 1, date: "2025年12月7日 15:22", title: "今日このサイトを開設しました。イェーイ！", content: "（画像は学校の朝食です。特に意味はありません）", mood: "嬉しい" }
+    ],
+    messagesUI: {
+      title: "掲示板",
+      localWarningTitle: "注意：現在ローカルモードです",
+      localWarningDesc: "黄色のWiFiアイコンはクラウドに接続されていないことを示します。メッセージはブラウザにのみ保存されます。",
+      empty: "まだメッセージはありません。最初のメッセージを投稿しましょう！",
+      postTitle: "新しいメッセージを投稿",
+      namePlaceholder: "名前...",
+      msgPlaceholder: "何か書いてね...",
+      postBtn: "投稿する",
+      deleteConfirm: "このメッセージを削除してもよろしいですか？",
+      deleteError: "削除に失敗しました。このクラウドメッセージを削除する権限がない可能性があります。",
+      postError: "投稿に失敗しました！ネットワークまたはFirebaseのルールを確認してください。"
+    }
+  },
+  tw: {
+    tabs: { profile: '角色', skills: '技能', projects: '任務', daily: '日常', messages: '留言板' },
+    topbar: { bjTime: '(BJ)' },
+    avatar: { clickMe: '點我!' },
+    profile: {
+      name: "緑ミドリ", title: "Lv.20 大學生", farmName: "Pixel Code Farm",
+      social: "社交帳號:", findMe: "Find Me", log: "冒險日誌",
+      curFarm: "當前農場:",
+      intro1: "你好！歡迎來到我的私人農場 在這裡你能看到我的資訊 。我會在這留下自己的生活碎片和自己的介紹 記錄一下自己的人生",
+      intro2: "目前我是一個在日本留學的大學生，攻讀資訊系統專業（情報システム）。這是我無聊敲出來的小網站，總之就是沒事幹。",
+      intro3: "我的日語和英語不是很好，日語基本上可以聽懂但是對話有點困難，英語的話只能理解簡單的（抱歉）。",
+      status: "狀態: 睡覺中", buff: "咖啡因 Buff 生效中 (剩餘 0h)"
+    },
+    skillsUI: { title: "技能等級" },
+    skillsData: [
+      { name: "網路衝浪 (Web Surfing)", level: 10 },
+      { name: "個人菜譜 (Cooking)", level: 4 },
+      { name: "遊戲能力 (Gaming)", level: 7 },
+      { name: "行動能力 (Action)", level: 5 },
+      { name: "攝影 (Photography)", level: 6 },
+    ],
+    projectsUI: { title: "懸賞任務", newQuest: "有新任務！", reward: "獎勵" },
+    projectsData: [
+      { id: 1, title: "大學進度", type: "學習", desc: "目前進度2/4 大二上在讀", reward: "一份工作（？）", tags: [] },
+      { id: 2, title: "全中國旅行點亮", type: "探索", desc: "目前已點亮 28/34。未點亮：安徽、寧夏、青海、河北、新疆、西藏。", reward: "閱歷++", tags: ["旅行", "中國"] }
+    ],
+    dailyUI: { title: "農場日記", mood: "心情:" },
+    dailyData: [
+      { id: 3, date: "4月20日 18:33", title: "就是看看貓", content: "", mood: "治癒" },
+      { id: 2, date: "2025年12月8日 19:30", title: "給我的頭像點擊20次（200金幣）會有驚喜", content: "這是一個隱藏的小彩蛋，只有堅持點擊的人才能發現", mood: "期待" },
+      { id: 1, date: "2025年12月7日 15:22", title: "我在今天開通了這個網站 歐耶！", content: "（圖片只是我學校的早餐 無意義）", mood: "開心" }
+    ],
+    messagesUI: {
+      title: "留言板",
+      localWarningTitle: "注意：當前處於本地模式",
+      localWarningDesc: "黃色 WiFi 圖標表示未能連接到雲端。留言僅保存在你的瀏覽器中，只有你自己能看到。",
+      empty: "暫無留言，快來搶沙發！",
+      postTitle: "發布新留言",
+      namePlaceholder: "你的名字...",
+      msgPlaceholder: "寫點什麼吧...",
+      postBtn: "發布留言",
+      deleteConfirm: "確定要刪除這條留言嗎？",
+      deleteError: "刪除失敗：你可能沒有權限刪除這條雲端留言（只有管理員或發布者可以刪除，具體取決於規則設置）。",
+      postError: "發布失敗！請檢查網絡或 Firebase 規則配置。"
+    }
+  }
+};
+
+// --- 固定的 UI 属性映射 ---
+const skillsIcons = [
+  { icon: <Globe size={24} />, color: "bg-blue-500" },
+  { icon: <Soup size={24} />, color: "bg-orange-500" },
+  { icon: <Swords size={24} />, color: "bg-red-500" },
+  { icon: <Search size={24} />, color: "bg-yellow-500" },
+  { icon: <Camera size={24} />, color: "bg-purple-500" }
+];
+const dailyImages = {
+  3: [
+    "https://img.cdn1.vip/i/6a07dcf1d2332_1778900209.webp",
+    "https://img.cdn1.vip/i/6a07dc70a2e58_1778900080.webp"
+  ],
+  1: ["https://i.postimg.cc/d01D8Dz9/5494118cbd5d94f2e15c6250c1afa313.jpg"]
+};
 
 // --- 图片飘雪特效组件 ---
 const SnowEffect = () => {
@@ -181,11 +386,18 @@ const App = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');
   
+  // 多语言状态
+  const [lang, setLang] = useState(() => {
+    try { return localStorage.getItem("pixel_farm_lang") || "zh"; } 
+    catch(e) { return "zh"; }
+  });
+  const t = locales[lang] || locales['zh'];
+
   const [imgError, setImgError] = useState(false);
   const [beijingTime, setBeijingTime] = useState(new Date());
-  const [weather, setWeather] = useState({ temp: '--', condition: '加载中...', icon: <Sun size={20}/> });
+  const [weather, setWeather] = useState({ temp: '--', code: 'loading', icon: <Sun size={20}/> });
   
-  // --- [优化] 懒加载初始化 State ---
+  // 状态懒加载
   const [money, setMoney] = useState(() => {
     try {
       const saved = localStorage.getItem("pixel_farm_money");
@@ -210,14 +422,17 @@ const App = () => {
     return [];
   });
 
-  // --- [数据管理] ---
   const [user, setUser] = useState(null);
   const [inputName, setInputName] = useState("");
   const [inputMsg, setInputMsg] = useState("");
   const [connectionStatus, setConnectionStatus] = useState(isCloudEnabled ? "connecting" : "local");
   const [dbErrorMsg, setDbErrorMsg] = useState("");
 
-  // 1. 初始化 Auth
+  // 保存语言选择
+  useEffect(() => {
+    localStorage.setItem("pixel_farm_lang", lang);
+  }, [lang]);
+
   useEffect(() => {
     if (isCloudEnabled && auth) {
       const initAuth = async () => {
@@ -228,9 +443,7 @@ const App = () => {
             await signInAnonymously(auth);
           }
         } catch (e) {
-          console.error("Auth init failed:", e);
           setConnectionStatus("local");
-          setDbErrorMsg("认证失败，已切换本地存储。");
         }
       };
       initAuth();
@@ -244,15 +457,12 @@ const App = () => {
     }
   }, []);
 
-  // 2. 监听云端数据
   useEffect(() => {
     if (isCloudEnabled && user && db) {
       const q = collection(db, 'artifacts', appId, 'public', 'data', 'messages');
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         msgs.sort((a, b) => b.timestamp - a.timestamp);
-        
-        // 云端有数据，覆盖本地并显示
         if (msgs.length > 0) {
             setMessages(msgs);
             localStorage.setItem("pixel_farm_messages", JSON.stringify(msgs));
@@ -260,21 +470,13 @@ const App = () => {
         setConnectionStatus("online");
         setDbErrorMsg(""); 
       }, (error) => {
-        console.error("Firestore Error:", error);
         setConnectionStatus("local"); 
-        if (error.code === 'permission-denied') {
-            setDbErrorMsg("权限被拒绝：请在 Firebase 控制台设置 Rules 为 'allow read, write: if true;'");
-        } else if (error.code === 'not-found') {
-            setDbErrorMsg("数据库未找到：请在 Firebase 控制台创建 Firestore Database");
-        } else {
-            setDbErrorMsg("连接失败：" + error.code + " (已切换本地)");
-        }
+        setDbErrorMsg("Database Error");
       });
       return () => unsubscribe();
     }
   }, [user]);
 
-  // 3. 自动保存本地数据
   useEffect(() => {
     localStorage.setItem("pixel_farm_money", money.toString());
   }, [money]);
@@ -284,19 +486,17 @@ const App = () => {
   }, [clickCount]);
 
   useEffect(() => {
-    // 只有当明确不在云端模式，或者连接失败时，才使用本地存储
     if (!isCloudEnabled || connectionStatus === "local") {
       localStorage.setItem("pixel_farm_messages", JSON.stringify(messages));
     }
   }, [messages, connectionStatus]);
 
-
-  // 发布留言逻辑
   const handlePostMessage = async (e) => {
     e.preventDefault();
     if (!inputName.trim() || !inputMsg.trim()) return;
 
-    const fullDate = new Date().toLocaleString('zh-CN', {
+    const localeStr = lang === 'zh' ? 'zh-CN' : lang === 'tw' ? 'zh-TW' : lang === 'ja' ? 'ja-JP' : 'en-US';
+    const fullDate = new Date().toLocaleString(localeStr, {
       year: 'numeric', month: '2-digit', day: '2-digit',
       hour: '2-digit', minute: '2-digit', second: '2-digit',
       hour12: false
@@ -309,15 +509,13 @@ const App = () => {
         timestamp: Date.now(),
     };
 
-    // 1. 乐观更新：本地先显示，用户体验更流畅
     const updatedMessages = [ { id: Date.now(), ...newMessageObj }, ...messages ];
     setMessages(updatedMessages);
     localStorage.setItem("pixel_farm_messages", JSON.stringify(updatedMessages));
 
     setInputMsg(""); 
 
-    // 2. 尝试发送到云端 (静默发送)
-    if (isCloudEnabled && db && user) {
+    if (isCloudEnabled && db && user && connectionStatus === "online") {
         try {
             await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'messages'), {
                 ...newMessageObj,
@@ -325,32 +523,26 @@ const App = () => {
             });
         } catch (error) {
             console.error("Post cloud error:", error);
-            // 失败时不打断，因为本地已经保存了
         }
     }
   };
 
-  // [新增] 删除留言逻辑
   const handleDeleteMessage = async (msgId) => {
-    if (!window.confirm("确定要删除这条留言吗？")) return;
+    if (!window.confirm(t.messagesUI.deleteConfirm)) return;
 
     if (isCloudEnabled && db && connectionStatus === "online") {
-      // 云端删除
       try {
         await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'messages', msgId));
       } catch (error) {
-        console.error("Delete error:", error);
-        alert("删除失败：你可能没有权限删除这条云端留言（只有管理员或发布者可以删除，具体取决于规则设置）。");
+        alert(t.messagesUI.deleteError);
       }
     } else {
-      // 本地删除
       const newMsgs = messages.filter(msg => msg.id !== msgId);
       setMessages(newMsgs);
       localStorage.setItem("pixel_farm_messages", JSON.stringify(newMsgs));
     }
   };
 
-  // 头像彩蛋
   const handleAvatarClick = () => {
     setMoney(money + 10);
     const newCount = clickCount + 1;
@@ -374,20 +566,19 @@ const App = () => {
         const data = await res.json();
         if (data.current_weather) {
           const { temperature, weathercode } = data.current_weather;
-          let condition = '晴朗';
+          let code = 'clear';
           let icon = <Sun size={20} className="text-yellow-500" />;
             
-          if (weathercode > 0 && weathercode <= 3) { condition = '多云'; icon = <Cloud size={20} className="text-gray-400" />; }
-          else if (weathercode >= 45 && weathercode <= 48) { condition = '雾'; icon = <Cloud size={20} className="text-gray-300" />; }
-          else if ((weathercode >= 51 && weathercode <= 67) || (weathercode >= 80 && weathercode <= 82)) { condition = '雨'; icon = <CloudRain size={20} className="text-blue-400" />; }
-          else if (weathercode >= 71 && weathercode <= 77) { condition = '雪'; icon = <CloudSnow size={20} className="text-blue-200" />; }
-          else if (weathercode >= 95) { condition = '雷暴'; icon = <CloudLightning size={20} className="text-purple-500" />; }
+          if (weathercode > 0 && weathercode <= 3) { code = 'cloudy'; icon = <Cloud size={20} className="text-gray-400" />; }
+          else if (weathercode >= 45 && weathercode <= 48) { code = 'fog'; icon = <Cloud size={20} className="text-gray-300" />; }
+          else if ((weathercode >= 51 && weathercode <= 67) || (weathercode >= 80 && weathercode <= 82)) { code = 'rain'; icon = <CloudRain size={20} className="text-blue-400" />; }
+          else if (weathercode >= 71 && weathercode <= 77) { code = 'snow'; icon = <CloudSnow size={20} className="text-blue-200" />; }
+          else if (weathercode >= 95) { code = 'thunder'; icon = <CloudLightning size={20} className="text-purple-500" />; }
             
-          setWeather({ temp: temperature, condition, icon });
+          setWeather({ temp: temperature, code, icon });
         }
       } catch (error) {
-        console.error("Weather error", error);
-        setWeather({ temp: 'N/A', condition: '离线', icon: <X size={20} /> });
+          setWeather({ temp: 'N/A', code: 'offline', icon: <X size={20} /> });
       }
     };
     fetchWeather();
@@ -395,73 +586,17 @@ const App = () => {
     return () => clearInterval(weatherTimer);
   }, []);
 
-  const timeString = new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(beijingTime);
-  const dateString = new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(beijingTime);
-  const currentFullTime = new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(beijingTime);
+  const localeStr = lang === 'zh' ? 'zh-CN' : lang === 'tw' ? 'zh-TW' : lang === 'ja' ? 'ja-JP' : 'en-US';
+  const timeString = new Intl.DateTimeFormat(localeStr, { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(beijingTime);
+  const dateString = new Intl.DateTimeFormat(localeStr, { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(beijingTime);
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
-
-  const tabLabels = {
-    profile: '角色',
-    skills: '技能',
-    projects: '任务',
-    daily: '日常',
-    messages: '留言板'
-  };
-
-  const personalInfo = {
-    name: "緑ミドリ", 
-    title: "Lv.20 大学生",
-    farmName: "Pixel Code Farm",
-    intro: "你好！欢迎来到我的私人农场 在这里你能看到我的信息 。我会在这留下自己的生活碎片和自己的介绍 记录一下自己的人生",
-    email: "midori@stardew.dev",
-    socials: {
-      qq: "http://1441000420.qzone.qq.com", 
-      bilibili: "https://space.bilibili.com/162103422?spm_id_from=333.1007.0.0", 
-      instagram: "https://www.instagram.com/midoriins1124/" 
-    },
-    avatarUrl: "https://i.postimg.cc/rpfB6wZp/ddad3a23f2b65a7a4392d9af8d2dbc38.jpg" 
-  };
-
-  const skills = [
-    { name: "网络冲浪 (Web Surfing)", level: 10, icon: <Globe size={24} />, color: "bg-blue-500" },
-    { name: "个人菜谱 (Cooking)", level: 4, icon: <Soup size={24} />, color: "bg-orange-500" },
-    { name: "游戏能力 (Gaming)", level: 7, icon: <Swords size={24} />, color: "bg-red-500" },
-    { name: "行动能力 (Action)", level: 5, icon: <Search size={24} />, color: "bg-yellow-500" },
-    { name: "摄影 (Photography)", level: 6, icon: <Camera size={24} />, color: "bg-purple-500" },
-  ];
-
-  const projects = [
-    { id: 1, title: "大学进度", type: "学习", desc: "目前进度1/4 大一下在读", reward: "一份工作（？）", tags: [] },
-    { id: 2, title: "全中国旅行点亮", type: "探索", desc: "目前已点亮 28/34。未点亮：安徽、宁夏、青海、河北、新疆、西藏。", reward: "阅历++", tags: ["旅行", "中国"] }
-  ];
-
-  const dailyMoments = [
-    {
-      id: 2,
-      date: "2025年12月8日 19:30",
-      title: "给我的头像点击20次（200金币）会有惊喜",
-      content: "这是一个隐藏的小彩蛋，只有坚持点击的人才能发现",
-      image: null, 
-      weather: weather.icon,
-      mood: "期待"
-    },
-    {
-      id: 1,
-      date: "2025年12月7日 15:22", 
-      title: "我在今天开通了这个网站 欧耶！",
-      content: "（图片只是我学校的早餐 无意义）", 
-      image: "https://i.postimg.cc/d01D8Dz9/5494118cbd5d94f2e15c6250c1afa313.jpg",
-      weather: weather.icon, 
-      mood: "开心"
-    }
-  ];
 
   const woodContainerClass = "bg-[#E09F5B] border-4 border-[#5E2C0C] rounded-lg shadow-[4px_4px_0px_0px_rgba(45,20,5,0.4)] relative w-full";
   const woodInnerClass = "bg-[#FFFAE3] border-2 border-[#9C5828] rounded m-2 p-4 text-[#4A2810] h-full";
     
   const rpgBtnClass = (active) => `
-    relative px-4 py-2 font-bold text-xl uppercase transition-all
+    relative px-4 py-2 font-bold text-xl uppercase transition-all whitespace-nowrap
     ${active 
       ? 'bg-[#E67E22] text-white shadow-[inset_0_0_10px_rgba(0,0,0,0.2)] translate-y-1' 
       : 'bg-[#D35400] text-[#FFE6CC] hover:bg-[#E67E22] shadow-[0_4px_0_#8E3200] hover:shadow-[0_2px_0_#8E3200] hover:translate-y-[2px]'}
@@ -472,7 +607,6 @@ const App = () => {
   return (
     <>
     <PixelFontLink />
-    {/* 启用飘雪特效 */}
     <SnowEffect />
     <div className="w-full min-h-screen font-['VT323'] bg-[#6CC478] text-[#4A2810] selection:bg-[#E67E22] selection:text-white flex flex-col overflow-x-hidden"
          style={{
@@ -495,6 +629,14 @@ const App = () => {
               </div>
             </div>
             <span className="text-3xl drop-shadow-md">{money.toLocaleString()}g</span>
+            
+            {/* 多语言切换按钮 */}
+            <div className="flex bg-[#8E4918] p-1 rounded border-2 border-[#5E2C0C] ml-2 font-sans">
+               <button onClick={() => setLang('zh')} className={`px-2 text-sm ${lang === 'zh' ? 'text-yellow-400 font-bold' : 'text-[#E6C69D] hover:text-white'}`}>简</button>
+               <button onClick={() => setLang('tw')} className={`px-2 text-sm ${lang === 'tw' ? 'text-yellow-400 font-bold' : 'text-[#E6C69D] hover:text-white'}`}>繁</button>
+               <button onClick={() => setLang('en')} className={`px-2 text-sm ${lang === 'en' ? 'text-yellow-400 font-bold' : 'text-[#E6C69D] hover:text-white'}`}>EN</button>
+               <button onClick={() => setLang('ja')} className={`px-2 text-sm ${lang === 'ja' ? 'text-yellow-400 font-bold' : 'text-[#E6C69D] hover:text-white'}`}>日</button>
+            </div>
           </div>
 
           <div className="hidden md:flex items-center bg-[#FFFAE3] px-4 py-1 rounded border-2 border-[#5E2C0C] text-[#5E2C0C] shadow-inner gap-6">
@@ -502,14 +644,14 @@ const App = () => {
                 <Calendar size={20} className="text-red-500" />
                 <div className="flex flex-col leading-none">
                   <span className="text-lg font-bold">{dateString}</span>
-                  <span className="text-sm text-[#8E4918]">{timeString} (BJ)</span>
+                  <span className="text-sm text-[#8E4918]">{timeString} {t.topbar.bjTime}</span>
                 </div>
              </div>
              <div className="flex items-center gap-2">
                 {weather.icon}
                 <div className="flex flex-col leading-none">
                   <span className="text-lg font-bold">{weather.temp}°C</span>
-                  <span className="text-sm text-[#8E4918]">{weather.condition}</span>
+                  <span className="text-sm text-[#8E4918]">{WEATHER_LOCALE[weather.code][lang]}</span>
                 </div>
              </div>
           </div>
@@ -534,7 +676,7 @@ const App = () => {
                 {tab === 'projects' && <Hammer size={20}/>}
                 {tab === 'daily' && <Coffee size={20}/>}
                 {tab === 'messages' && <MessageCircle size={20}/>}
-                {tabLabels[tab]}
+                {t.tabs[tab]}
               </button>
             ))}
           </div>
@@ -564,7 +706,7 @@ const App = () => {
                     : 'bg-[#A05E28] text-[#E0CEB5] hover:bg-[#C27E46] translate-y-2'}
                 `}
               >
-                {tab.icon} {tabLabels[tab.id]}
+                {tab.icon} {t.tabs[tab.id]}
               </button>
             ))}
           </div>
@@ -590,7 +732,7 @@ const App = () => {
                           </div>
                           {!imgError && (
                               <img 
-                                src={personalInfo.avatarUrl}
+                                src="https://i.postimg.cc/rpfB6wZp/ddad3a23f2b65a7a4392d9af8d2dbc38.jpg"
                                 alt="Avatar" 
                                 className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform z-10"
                                 style={{ imageRendering: 'pixelated' }}
@@ -599,15 +741,15 @@ const App = () => {
                           )}
                       </div>
                       <div className="absolute top-2 right-2 text-xs bg-red-500 text-white px-2 rounded-full border border-[#5E2C0C] animate-bounce z-20">
-                          点我!
+                          {t.avatar.clickMe}
                       </div>
                     </div>
                     <div className="bg-[#FFFAE3] border-2 border-[#9C5828] rounded p-2 w-full text-center shadow-md">
-                      <h2 className="text-3xl font-bold text-[#5E2C0C]">{personalInfo.name}</h2>
-                      <p className="text-xl text-[#8E4918]">{personalInfo.title}</p>
+                      <h2 className="text-3xl font-bold text-[#5E2C0C]">{t.profile.name}</h2>
+                      <p className="text-xl text-[#8E4918]">{t.profile.title}</p>
                     </div>
-                    <div className="mt-4 flex gap-2 w-full justify-center mb-6">
-                        <span className="text-[#5E2C0C] text-xl">社交账号:</span>
+                    <div className="mt-4 flex gap-2 w-full justify-center mb-6 items-center">
+                        <span className="text-[#5E2C0C] text-xl font-bold">{t.profile.social}</span>
                         <Heart className="fill-red-500 text-red-500 animate-pulse" />
                         <Heart className="fill-red-500 text-red-500" />
                         <Heart className="fill-red-500 text-red-500" />
@@ -616,19 +758,19 @@ const App = () => {
                     </div>
 
                     <div className="bg-[#E6C69D] p-4 rounded border-2 border-[#9C5828] text-center w-full">
-                        <h4 className="text-3xl font-bold text-[#5E2C0C] mb-3">Find Me</h4>
+                        <h4 className="text-3xl font-bold text-[#5E2C0C] mb-3">{t.profile.findMe}</h4>
                         <div className="flex justify-center gap-4 flex-wrap">
-                            <a href={personalInfo.socials.qq} target="_blank" rel="noopener noreferrer" className="text-[#5E2C0C] hover:text-[#8E4918] transition-colors hover:scale-110 transform">
+                            <a href="http://1441000420.qzone.qq.com" target="_blank" rel="noopener noreferrer" className="text-[#5E2C0C] hover:text-[#8E4918] transition-colors hover:scale-110 transform">
                                 <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center border-2 border-[#5E2C0C]">
                                     <Star size={24} className="text-yellow-500" />
                                 </div>
                             </a>
-                            <a href={personalInfo.socials.bilibili} target="_blank" rel="noopener noreferrer" className="text-[#5E2C0C] hover:text-[#8E4918] transition-colors hover:scale-110 transform">
+                            <a href="https://space.bilibili.com/162103422?spm_id_from=333.1007.0.0" target="_blank" rel="noopener noreferrer" className="text-[#5E2C0C] hover:text-[#8E4918] transition-colors hover:scale-110 transform">
                                 <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center border-2 border-[#5E2C0C]">
                                     <Tv size={24} className="text-pink-400" />
                                 </div>
                             </a>
-                            <a href={personalInfo.socials.instagram} target="_blank" rel="noopener noreferrer" className="text-[#5E2C0C] hover:text-[#8E4918] transition-colors hover:scale-110 transform">
+                            <a href="https://www.instagram.com/midoriins1124/" target="_blank" rel="noopener noreferrer" className="text-[#5E2C0C] hover:text-[#8E4918] transition-colors hover:scale-110 transform">
                                 <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center border-2 border-[#5E2C0C]">
                                     <Instagram size={24} className="text-purple-500" />
                                 </div>
@@ -640,24 +782,27 @@ const App = () => {
                   <div className="md:w-2/3">
                     <div className={woodInnerClass + " h-full relative flex flex-col justify-center"}>
                       <div className="absolute top-0 right-0 w-8 h-8 bg-[#E09F5B] transform rotate-45 translate-x-4 -translate-y-4 border-l-2 border-b-2 border-[#9C5828]"></div>
-                      <h3 className="text-4xl font-bold mb-6 border-b-2 border-[#9C5828] pb-2 text-[#5E2C0C]">冒险日志</h3>
+                      <h3 className="text-4xl font-bold mb-6 border-b-2 border-[#9C5828] pb-2 text-[#5E2C0C]">{t.profile.log}</h3>
                       <div className="space-y-6 text-2xl leading-relaxed">
                         <p>
-                          <span className="font-bold text-[#8E4918]">当前农场:</span> {personalInfo.farmName}
+                          <span className="font-bold text-[#8E4918]">{t.profile.curFarm}</span> {t.profile.farmName}
                         </p>
                         <p>
-                          {personalInfo.intro}
+                          {t.profile.intro1}
                         </p>
                         <p>
-                          目前我是一个在日本留学的大学生，攻读信息系统专业（情報システム）。这是我无聊敲出来的小网站，总之就是没事干。
+                          {t.profile.intro2}
+                        </p>
+                        <p>
+                          {t.profile.intro3}
                         </p>
                         <div className="bg-[#E6C69D] p-4 rounded border border-[#9C5828] mt-8 flex items-center gap-4">
                           <div className="animate-spin-slow">
                               <Code size={32} className="text-[#5E2C0C]" />
                           </div>
                           <div>
-                              <div className="font-bold text-[#5E2C0C]">状态: 睡觉中</div>
-                              <div className="text-lg text-[#8E4918]">咖啡因 Buff 生效中 (剩余 0h)</div>
+                              <div className="font-bold text-[#5E2C0C]">{t.profile.status}</div>
+                              <div className="text-lg text-[#8E4918]">{t.profile.buff}</div>
                           </div>
                         </div>
                       </div>
@@ -670,13 +815,13 @@ const App = () => {
               {activeTab === 'skills' && (
                 <div className="animate-in slide-in-from-right duration-300 flex flex-col justify-center h-full">
                    <h3 className="text-4xl font-bold mb-12 text-center text-[#5E2C0C] drop-shadow-sm flex items-center justify-center gap-3">
-                      <Sprout size={32} /> 技能等级 <Sprout size={32} />
+                      <Sprout size={32} /> {t.skillsUI.title} <Sprout size={32} />
                    </h3>
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      {skills.map((skill, idx) => (
+                      {t.skillsData.map((skill, idx) => (
                           <div key={idx} className="bg-[#FFFAE3] border-2 border-[#9C5828] p-6 rounded-lg shadow-md flex items-center gap-6 hover:translate-x-1 transition-transform cursor-default">
-                              <div className={`w-20 h-20 ${skill.color} border-4 border-[#5E2C0C] rounded flex items-center justify-center text-white shadow-lg`}>
-                                  {skill.icon}
+                              <div className={`w-20 h-20 ${skillsIcons[idx].color} border-4 border-[#5E2C0C] rounded flex items-center justify-center text-white shadow-lg`}>
+                                  {skillsIcons[idx].icon}
                               </div>
                               <div className="flex-1">
                                   <div className="flex justify-between items-end mb-2">
@@ -702,13 +847,13 @@ const App = () => {
               {activeTab === 'projects' && (
                 <div className="animate-in slide-in-from-right duration-300 flex flex-col h-full">
                   <div className="flex justify-between items-center mb-8">
-                      <h3 className="text-4xl font-bold text-[#5E2C0C]">悬赏任务</h3>
-                      <div className="text-xl bg-[#FFFAE3] px-3 py-1 border-2 border-[#9C5828] rounded">
-                          有新任务！
+                      <h3 className="text-4xl font-bold text-[#5E2C0C]">{t.projectsUI.title}</h3>
+                      <div className="text-xl bg-[#FFFAE3] px-3 py-1 border-2 border-[#9C5828] rounded font-bold">
+                          {t.projectsUI.newQuest}
                       </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 flex-grow">
-                      {projects.map((project) => (
+                      {t.projectsData.map((project) => (
                           <div key={project.id} className="bg-[#FFFAE3] p-0 relative group shadow-lg transition-transform hover:-translate-y-2 h-full">
                               <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-red-600 border border-[#5E2C0C] shadow-sm z-10"></div>
                               <div className="border-4 border-[#9C5828] h-full flex flex-col p-6 relative bg-[url('https://www.transparenttextures.com/patterns/paper.png')]">
@@ -730,7 +875,7 @@ const App = () => {
                                   </div>
                                   <div className="mt-auto pt-4 border-t-2 border-[#9C5828] flex justify-between items-center">
                                       <div className="flex flex-col">
-                                          <span className="text-sm font-bold text-[#8E4918] uppercase">奖励</span>
+                                          <span className="text-sm font-bold text-[#8E4918] uppercase">{t.projectsUI.reward}</span>
                                           <span className="text-xl font-bold text-[#5E2C0C]">{project.reward}</span>
                                       </div>
                                   </div>
@@ -745,26 +890,31 @@ const App = () => {
               {activeTab === 'daily' && (
                 <div className="animate-in slide-in-from-right duration-300 h-full flex flex-col">
                    <h3 className="text-4xl font-bold mb-8 text-center text-[#5E2C0C] flex items-center justify-center gap-3">
-                      <Coffee size={32} /> 农场日记 <Coffee size={32} />
+                      <Coffee size={32} /> {t.dailyUI.title} <Coffee size={32} />
                    </h3>
                    <div className="flex flex-col gap-8 flex-grow overflow-auto">
-                      {/* 仅居中显示日记列表 */}
                       <div className="w-full max-w-4xl mx-auto space-y-8">
-                         {dailyMoments.map(moment => (
+                         {t.dailyData.map(moment => (
                              <div key={moment.id} className="bg-[#FFFAE3] border-2 border-[#9C5828] p-6 rounded-lg shadow-md relative">
                                  <div className="absolute -left-2 top-6 w-4 h-8 bg-[#8E4918] rounded-r"></div>
                                  <div className="flex justify-between items-start border-b border-[#9C5828] pb-3 mb-4">
                                      <div className="flex items-center gap-3">
                                          <span className="text-2xl font-bold text-[#5E2C0C]">{moment.date}</span>
-                                         <div className="scale-125 origin-left">{moment.weather}</div>
+                                         <div className="scale-125 origin-left">{weather.icon}</div>
                                      </div>
-                                     <span className="text-[#8E4918] bg-[#E6C69D] px-3 py-1 rounded text-lg">心情: {moment.mood}</span>
+                                     <span className="text-[#8E4918] bg-[#E6C69D] px-3 py-1 rounded text-lg font-bold">
+                                         {t.dailyUI.mood} {moment.mood}
+                                     </span>
                                  </div>
                                  <h4 className="text-3xl font-bold text-[#5E2C0C] mb-4">{moment.title}</h4>
                                  
-                                 {moment.image && (
-                                  <div className="mb-6 border-4 border-[#9C5828] rounded overflow-hidden shadow-sm">
-                                    <img src={moment.image} alt={moment.title} className="w-full h-auto object-cover max-h-[500px]" />
+                                 {dailyImages[moment.id] && (
+                                  <div className="mb-6 flex flex-col gap-4">
+                                    {dailyImages[moment.id].map((imgUrl, i) => (
+                                      <div key={i} className="border-4 border-[#9C5828] rounded overflow-hidden shadow-sm">
+                                        <img src={imgUrl} alt={`${moment.title}-${i}`} className="w-full h-auto object-cover max-h-[500px]" />
+                                      </div>
+                                    ))}
                                   </div>
                                  )}
                                  {moment.content && <p className="text-2xl text-[#4A2810] leading-relaxed">{moment.content}</p>}
@@ -775,13 +925,13 @@ const App = () => {
                 </div>
               )}
 
-              {/* --- 留言板 TAB (新增) --- */}
+              {/* --- 留言板 TAB --- */}
               {activeTab === 'messages' && (
                 <div className="animate-in slide-in-from-right duration-300 h-full flex flex-col">
                    <h3 className="text-4xl font-bold mb-8 text-center text-[#5E2C0C] flex items-center justify-center gap-3">
                       <MessageCircle size={32} /> 
-                      留言板 
-                      <span className="ml-2" title={isCloudEnabled ? "云端数据库已连接" : "本地模式 (仅自己可见)"}>
+                      {t.messagesUI.title}
+                      <span className="ml-2" title={isCloudEnabled ? "Online" : "Local Mode"}>
                         {connectionStatus === "online" ? <Wifi size={24} className="text-green-600" /> : <WifiOff size={24} className="text-yellow-600" />}
                       </span>
                       <MessageCircle size={32} />
@@ -792,9 +942,9 @@ const App = () => {
                         <div className="bg-[#FFFAE3] border-l-4 border-yellow-500 p-4 text-[#8E4918] flex items-start gap-3 rounded shadow-sm">
                            <AlertTriangle size={24} className="text-yellow-600 flex-shrink-0" />
                            <div>
-                             <p className="font-bold">注意：当前处于本地模式</p>
+                             <p className="font-bold">{t.messagesUI.localWarningTitle}</p>
                              <p className="text-sm">
-                               {dbErrorMsg || "黄色 WiFi 图标表示未能连接到云端。留言仅保存在你的浏览器中，只有你自己能看到。"}
+                               {dbErrorMsg || t.messagesUI.localWarningDesc}
                              </p>
                            </div>
                         </div>
@@ -803,7 +953,7 @@ const App = () => {
                       {/* 留言列表 */}
                       <div className="flex-grow overflow-auto space-y-4 pr-2 bg-[#E6C69D] p-4 rounded border-2 border-[#9C5828] shadow-inner max-h-[500px]">
                         {messages.length === 0 && (
-                          <div className="text-center text-[#8E4918] text-xl py-10">暂无留言，快来抢沙发！</div>
+                          <div className="text-center text-[#8E4918] text-xl py-10 font-bold">{t.messagesUI.empty}</div>
                         )}
                         {messages.map(msg => (
                           <div key={msg.id} className="bg-[#FFFAE3] p-4 rounded border border-[#9C5828] shadow-sm relative group hover:-translate-y-1 transition-transform">
@@ -813,7 +963,7 @@ const App = () => {
                              <button 
                                 onClick={() => handleDeleteMessage(msg.id)}
                                 className="absolute top-2 right-2 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                                title="删除留言"
+                                title="Delete"
                              >
                                <Trash2 size={18} />
                              </button>
@@ -830,13 +980,13 @@ const App = () => {
                       {/* 留言输入框 */}
                       <div className="bg-[#FFFAE3] p-6 rounded border-2 border-[#9C5828] shadow-md">
                          <h4 className="text-2xl font-bold text-[#5E2C0C] mb-4 flex items-center gap-2">
-                           <Send size={20}/> 发布新留言
+                           <Send size={20}/> {t.messagesUI.postTitle}
                          </h4>
                          <form onSubmit={handlePostMessage} className="flex flex-col gap-4">
                             <div className="flex flex-col md:flex-row gap-4">
                                 <input 
                                   type="text" 
-                                  placeholder="你的名字..." 
+                                  placeholder={t.messagesUI.namePlaceholder}
                                   className="bg-white border-2 border-[#8E4918] px-3 py-2 rounded text-xl focus:outline-none focus:border-[#E67E22] md:w-1/3 placeholder-[#E6C69D]"
                                   value={inputName}
                                   onChange={(e) => setInputName(e.target.value)}
@@ -844,7 +994,7 @@ const App = () => {
                                 />
                                 <input 
                                   type="text" 
-                                  placeholder="写点什么吧..." 
+                                  placeholder={t.messagesUI.msgPlaceholder}
                                   className="bg-white border-2 border-[#8E4918] px-3 py-2 rounded text-xl focus:outline-none focus:border-[#E67E22] flex-grow placeholder-[#E6C69D]"
                                   value={inputMsg}
                                   onChange={(e) => setInputMsg(e.target.value)}
@@ -855,7 +1005,7 @@ const App = () => {
                               type="submit" 
                               className="self-end bg-[#D35400] text-[#FFE6CC] border-2 border-[#5E2C0C] px-6 py-2 rounded text-xl font-bold hover:bg-[#E67E22] shadow-[0_4px_0_#8E3200] hover:shadow-[0_2px_0_#8E3200] hover:translate-y-[2px] transition-all"
                             >
-                              发布留言
+                              {t.messagesUI.postBtn}
                             </button>
                          </form>
                       </div>
